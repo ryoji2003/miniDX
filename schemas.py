@@ -42,3 +42,32 @@ class Task(TaskBase):
     id: int
     class Config:
         from_attributes = True
+
+# --- 希望休 (AbsenceRequest) ---
+class AbsenceRequestBase(BaseModel):
+    staff_id: int
+    date: str  # YYYY-MM-DD形式
+
+class AbsenceRequestCreate(AbsenceRequestBase):
+    pass
+
+class AbsenceRequest(AbsenceRequestBase):
+    id: int
+    # 誰の休みか名前も返すと便利なので、本来はjoinするが今回は簡易的にID管理
+    
+    class Config:
+        from_attributes = True
+
+# --- 日次要件 (DailyRequirement) ---
+class DailyRequirementBase(BaseModel):
+    date: str
+    task_id: int
+    count: int = 1
+
+class DailyRequirementCreate(DailyRequirementBase):
+    pass
+
+class DailyRequirement(DailyRequirementBase):
+    id: int
+    class Config:
+        from_attributes = True

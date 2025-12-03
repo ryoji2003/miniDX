@@ -95,3 +95,63 @@ def create_task(task: schemas.TaskCreate, db: Session = Depends(get_db)):
 @app.get("/api/task", response_model=List[schemas.Task])
 def read_tasks(db: Session = Depends(get_db)):
     return db.query(models.Task).all()
+
+@app.get("/api/absence", response_model=List[schemas.AbsenceRequest])
+def read_absences(db: Session = Depends(get_db)):
+    # 全員の希望休を返します
+    return db.query(models.AbsenceRequest).all()
+
+@app.post("/api/absence", response_model=schemas.AbsenceRequest)
+def create_absence(req: schemas.AbsenceRequestCreate, db: Session = Depends(get_db)):
+    # 重複チェック: 同じスタッフが同じ日に申請済みなら、既存のデータを返す(何もしない)
+    existing = db.query(models.AbsenceRequest).filter(
+        models.AbsenceRequest.staff_id == req.staff_id,
+        models.AbsenceRequest.date == req.date
+    ).first()
+    
+    if existing:
+        return existing
+
+    db_req = models.AbsenceRequest(staff_id=req.staff_id, date=req.date)
+    db.add(db_req)
+    db.commit()
+    db.refresh(db_req)
+    return db_req
+
+@app.delete("/api/absence/{id}")
+def delete_absence(id: int, db: Session = Depends(get_db)):
+    db_req = db.query(models.AbsenceRequest).filter(models.AbsenceRequest.id == id).first()
+    if not db_req:
+        raise HTTPException(status_code=404, detail="Not found")
+    
+    db.delete(db_req)
+    db.commit()
+    return {"message": "Deleted successfully"}
+
+
+#  日次要件 API (DailyRequirement)
+@app.get("/api/requirements", response_model=List[schemas.DailyRequirement])
+def read_requirements(db: Session = Depends(get_db)):
+    return db.query(models.DailyRequirement).all()
+
+@app.post("/api/requirements", response_model=schemas.DailyRequirement)
+def create_or_update_requirement(req: schemas.DailyRequirementCreate, db: Session = Depends(get_db)):
+    # 「ある日付」の「ある業務」の要件が既に登録されているか探す
+    existing = db.query(models.DailyRequirement).filter(
+        models.DailyRequirement.date == req.date,
+        models.DailyRequirement.task_id == req.task_id
+    ).first()
+    
+    if existing:
+        # 既に設定があれば、人数を更新(上書き)
+        existing.count = req.count
+        db.commit()
+        db.refresh(existing)
+        return existing
+    else:
+        # 新規作成
+        db_req = models.DailyRequirement(date=req.date, task_id=req.task_id, count=req.count)
+        db.add(db_req)
+        db.commit()
+        db.refresh(db_req)
+        return db_req
