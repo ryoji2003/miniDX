@@ -12,7 +12,7 @@ class StaffCreate(StaffBase):
 class Staff(StaffBase):
     id: int
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 # --- Skill用スキーマ ---
 class SkillBase(BaseModel):
@@ -24,7 +24,7 @@ class SkillCreate(SkillBase):
 class Skill(SkillBase):
     id: int
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 # --- Task用スキーマ ---
 class TaskBase(BaseModel):
@@ -37,4 +37,4 @@ class TaskCreate(TaskBase):
 class Task(TaskBase):
     id: int
     class Config:
-        orm_mode = True
+        from_attributes = True
