@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>マスタ設定 - シフトアプリ</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        h2 { border-bottom: 2px solid #ddd; padding-bottom: 10px; }
+        
+        /* フォームのスタイル */
+        .form-group { margin-bottom: 15px; }
+        label { display: inline-block; width: 150px; }
+        input { padding: 5px; }
+        button { padding: 5px 15px; background-color: #007bff; color: white; border: none; cursor: pointer; }
+        button:hover { background-color: #0056b3; }
+
+        /* テーブルのスタイル */
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🛠️ 設定画面</h1>
+
+        <section>
+            <h2>スタッフ登録</h2>
+            <div class="form-group">
+                <label>名前:</label>
+                <input type="text" id="staffName" placeholder="例: 山田 花子">
+            </div>
+            <div class="form-group">
+                <label>月間勤務上限:</label>
+                <input type="number" id="staffLimit" value="20">
+            </div>
+            <button onclick="registerStaff()">登録する</button>
+        </section>
+
+        <section>
+            <h2>スタッフ一覧</h2>
+            <table id="staffTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>名前</th>
+                        <th>勤務上限</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    </tbody>
+            </table>
+        </section>
+    </div>
+
+    <script>
+        // ページ読み込み時に一覧を取得
+        window.onload = function() {
+            fetchStaffList();
+        };
+
+        // --- 1. スタッフ一覧を取得して表示 ---
+        async function fetchStaffList() {
+            try {
+                // APIを呼び出す
+                const response = await fetch("/api/staff");
+                const staffList = await response.json();
+
+                // テーブルをクリアして書き直す
+                const tbody = document.querySelector("#staffTable tbody");
+                tbody.innerHTML = "";
+
+                staffList.forEach(staff => {
+                    const tr = document.createElement("tr");
+                    tr.innerHTML = `
+                        <td>${staff.id}</td>
+                        <td>${staff.name}</td>
+                        <td>${staff.work_limit}日</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (error) {
+                console.error("エラー:", error);
+                alert("データの取得に失敗しました");
+            }
+        }
+
+        // --- 2. スタッフを新規登録 ---
+        async function registerStaff() {
+            const name = document.getElementById("staffName").value;
+            const limit = document.getElementById("staffLimit").value;
+
+            if (!name) {
+                alert("名前を入力してください");
+                return;
+            }
+
+            try {
+                // APIにデータを送信 (POST)
+                const response = await fetch("/api/staff", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        name: name,
+                        work_limit: parseInt(limit)
+                    })
+                });
+
+                if (response.ok) {
+                    alert("登録しました！");
+                    document.getElementById("staffName").value = ""; // 入力欄をクリア
+                    fetchStaffList(); // 一覧を再取得
+                } else {
+                    alert("登録に失敗しました");
+                }
+            } catch (error) {
+                console.error("エラー:", error);
+            }
+        }
+    </script>
+</body>
+</html>

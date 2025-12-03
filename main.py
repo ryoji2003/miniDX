@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from typing import List
-
 import models
 import schemas
 from database import engine, get_db
@@ -10,6 +10,8 @@ from database import engine, get_db
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # --- 動作確認用 ---
 @app.get("/")
