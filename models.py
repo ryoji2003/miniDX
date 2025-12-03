@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey
 from sqlalchemy.orm import relationship
 from database import Base
 
@@ -7,22 +7,45 @@ class Staff(Base):
     __tablename__ = "staffs"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, index=True)          # 名前 (例: Aさん)
-    work_limit = Column(Integer, default=20)   # 月の勤務上限 (例: 20日)
+    name = Column(String, index=True)
+    work_limit = Column(Integer, default=20)   # 月の勤務上限
     
-    # StaffとSkillの多対多リレーションなどは今後追加
+    # 免許タイプ (0:なし, 1:普通車のみ, 2:ワゴン可)
+    license_type = Column(Integer, default=0)
+    
+    # パートフラグ (True:パート/運転不可, False:常勤)
+    is_part_time = Column(Boolean, default=False)
+    
+    # 訓練限定フラグ (True:訓練と運転のみ可, False:全業務可)
+    can_only_train = Column(Boolean, default=False)
+
+    # 看護師資格フラグ (True:看護師, False:その他/介護士)
+    is_nurse = Column(Boolean, default=False)
 
 # --- スキル (Skill) ---
 class Skill(Base):
     __tablename__ = "skills"
-
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, unique=True, index=True) # スキル名 (例: 看護師)
+    name = Column(String, unique=True, index=True)
 
 # --- 業務 (Task) ---
 class Task(Base):
     __tablename__ = "tasks"
-
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, index=True)          # 業務名 (例: 看護業務)
-    required_skill_id = Column(Integer, ForeignKey("skills.id"), nullable=True) # 必要なスキルID
+    name = Column(String, index=True)
+    required_skill_id = Column(Integer, ForeignKey("skills.id"), nullable=True)
+
+# --- 希望休 (AbsenceRequest) ---
+class AbsenceRequest(Base):
+    __tablename__ = "absence_requests"
+    id = Column(Integer, primary_key=True, index=True)
+    staff_id = Column(Integer, ForeignKey("staffs.id"))
+    date = Column(String, index=True)
+
+# --- 日次要件 (DailyRequirement) ---
+class DailyRequirement(Base):
+    __tablename__ = "daily_requirements"
+    id = Column(Integer, primary_key=True, index=True)
+    date = Column(String, index=True)
+    task_id = Column(Integer, ForeignKey("tasks.id"))
+    count = Column(Integer, default=1)
