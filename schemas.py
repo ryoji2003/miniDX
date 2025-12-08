@@ -71,3 +71,7 @@ class DailyRequirement(DailyRequirementBase):
     id: int
     class Config:
         from_attributes = True
+
+class GenerateRequest(BaseModel):
+    year: int
+    month: int

@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>シフト作成システム - MiniDX</title>
+    <style>
+        body { font-family: "Helvetica Neue", Arial, sans-serif; background-color: #f0f2f5; margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+        .header { width: 100%; background-color: #333; color: white; padding: 15px 0; text-align: center; margin-bottom: 40px; }
+        .header h1 { margin: 0; font-size: 1.5rem; }
+        .nav-link { color: #ccc; text-decoration: none; font-size: 0.9rem; margin-top: 5px; display: inline-block; }
+        .nav-link:hover { color: white; }
+
+        .card { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: center; width: 90%; max-width: 500px; }
+        h2 { margin-top: 0; color: #333; }
+        p { color: #666; margin-bottom: 30px; }
+
+        .control-group { margin-bottom: 25px; }
+        input[type="month"] { padding: 10px; font-size: 1.2rem; border: 2px solid #ddd; border-radius: 6px; width: 200px; text-align: center; }
+
+        .btn-generate { 
+            background-color: #007bff; color: white; border: none; padding: 15px 40px; 
+            font-size: 1.2rem; font-weight: bold; border-radius: 50px; cursor: pointer; 
+            transition: background 0.3s, transform 0.1s; box-shadow: 0 4px 6px rgba(0,123,255,0.3);
+        }
+        .btn-generate:hover { background-color: #0056b3; transform: translateY(-2px); }
+        .btn-generate:active { transform: translateY(0); }
+        .btn-generate:disabled { background-color: #ccc; cursor: not-allowed; box-shadow: none; }
+
+        .settings-btn { margin-top: 20px; display: inline-block; color: #007bff; text-decoration: none; border: 1px solid #007bff; padding: 10px 20px; border-radius: 4px; transition: 0.2s; }
+        .settings-btn:hover { background-color: #007bff; color: white; }
+
+        /* 結果表示エリア */
+        #resultArea { margin-top: 30px; display: none; border-top: 1px solid #eee; padding-top: 20px; }
+        .download-link { 
+            display: inline-block; background-color: #28a745; color: white; text-decoration: none; 
+            padding: 12px 25px; border-radius: 6px; font-weight: bold; font-size: 1.1rem;
+        }
+        .download-link:hover { background-color: #218838; }
+
+        /* ローディング */
+        .loader { border: 5px solid #f3f3f3; border-top: 5px solid #007bff; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 10px auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .error-msg { color: #dc3545; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>📅 MiniDX シフト作成システム</h1>
+    </div>
+
+    <div class="card">
+        <h2>シフト自動作成</h2>
+        <p>対象月を選択してボタンを押してください。<br>AIが最適なシフト表を計算します。</p>
+
+        <div class="control-group">
+            <input type="month" id="targetMonth">
+        </div>
+
+        <button class="btn-generate" id="genBtn" onclick="generateShift()">作成開始</button>
+
+        <div id="resultArea">
+            <div id="loading" style="display:none;">
+                <div class="loader"></div>
+                <div>計算中... (数秒かかります)</div>
+            </div>
+            <div id="success" style="display:none;">
+                <p style="color:#28a745; font-weight:bold;">✨ 完成しました！</p>
+                <a href="#" id="downloadLink" class="download-link">📥 Excelをダウンロード</a>
+            </div>
+            <div id="error" style="display:none;">
+                <p class="error-msg" id="errorText"></p>
+            </div>
+        </div>
+
+        <div style="margin-top: 40px; border-top: 1px solid #eee; padding-top: 20px;">
+            <a href="/static/settings.html" class="settings-btn">⚙️ マスタ設定画面へ</a>
+            <br>
+            <a href="/static/request.html" class="nav-link" style="color:#888; margin-top:10px;">(従業員用) 希望休申請へ</a>
+        </div>
+    </div>
+
+    <script>
+        // 初期値として来月をセット
+        window.onload = function() {
+            const nextMonth = new Date();
+            nextMonth.setMonth(nextMonth.getMonth() + 1);
+            document.getElementById('targetMonth').value = nextMonth.toISOString().slice(0, 7);
+        };
+
+        async function generateShift() {
+            const monthStr = document.getElementById('targetMonth').value;
+            if (!monthStr) return alert("作成する月を選択してください");
+
+            const [year, month] = monthStr.split('-').map(Number);
+
+            // UI切り替え
+            const btn = document.getElementById('genBtn');
+            const resultArea = document.getElementById('resultArea');
+            const loading = document.getElementById('loading');
+            const success = document.getElementById('success');
+            const error = document.getElementById('error');
+
+            btn.disabled = true;
+            resultArea.style.display = 'block';
+            loading.style.display = 'block';
+            success.style.display = 'none';
+            error.style.display = 'none';
+
+            try {
+                // API呼び出し
+                const res = await fetch("/api/generate-shift", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ year: year, month: month })
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    // 成功
+                    loading.style.display = 'none';
+                    success.style.display = 'block';
+                    document.getElementById('downloadLink').href = data.download_url;
+                } else {
+                    // 失敗 (計算不能など)
+                    throw new Error(data.detail || "シフト作成に失敗しました");
+                }
+
+            } catch (e) {
+                loading.style.display = 'none';
+                error.style.display = 'block';
+                document.getElementById('errorText').innerText = "⚠️ " + e.message;
+            } finally {
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
