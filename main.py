@@ -5,27 +5,28 @@ from typing import List
 
 import models
 import schemas
+import solver  # ★追加: ソルバーを読み込む
 from database import engine, get_db
 
-# DB初期化
+# データベースのテーブルを自動作成 (初回起動時)
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
-# フロントエンド用設定
+# staticディレクトリ内のファイルを /static というURLで公開する設定
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+# --- 動作確認用 ---
 @app.get("/")
 def read_root():
     return {"message": "Shift App Backend is running!"}
 
-# --- Staff API ---
-# 一覧取得
+#  Staff API (スタッフ管理)
+
 @app.get("/api/staff", response_model=List[schemas.Staff])
 def read_staffs(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     return db.query(models.Staff).offset(skip).limit(limit).all()
 
-# 新規登録
 @app.post("/api/staff", response_model=schemas.Staff)
 def create_staff(staff: schemas.StaffCreate, db: Session = Depends(get_db)):
     db_staff = models.Staff(
@@ -41,7 +42,6 @@ def create_staff(staff: schemas.StaffCreate, db: Session = Depends(get_db)):
     db.refresh(db_staff)
     return db_staff
 
-# 編集
 @app.put("/api/staff/{staff_id}", response_model=schemas.Staff)
 def update_staff(staff_id: int, staff: schemas.StaffCreate, db: Session = Depends(get_db)):
     db_staff = db.query(models.Staff).filter(models.Staff.id == staff_id).first()
@@ -60,7 +60,6 @@ def update_staff(staff_id: int, staff: schemas.StaffCreate, db: Session = Depend
     db.refresh(db_staff)
     return db_staff
 
-# 削除
 @app.delete("/api/staff/{staff_id}")
 def delete_staff(staff_id: int, db: Session = Depends(get_db)):
     db_staff = db.query(models.Staff).filter(models.Staff.id == staff_id).first()
@@ -71,7 +70,8 @@ def delete_staff(staff_id: int, db: Session = Depends(get_db)):
     db.commit()
     return {"message": "Deleted successfully"}
 
-# --- Skill & Task API ---
+#  Skill & Task API (業務管理)
+
 @app.post("/api/skill", response_model=schemas.Skill)
 def create_skill(skill: schemas.SkillCreate, db: Session = Depends(get_db)):
     db_skill = models.Skill(name=skill.name)
@@ -96,14 +96,25 @@ def create_task(task: schemas.TaskCreate, db: Session = Depends(get_db)):
 def read_tasks(db: Session = Depends(get_db)):
     return db.query(models.Task).all()
 
+@app.delete("/api/task/{task_id}")
+def delete_task(task_id: int, db: Session = Depends(get_db)):
+    db_task = db.query(models.Task).filter(models.Task.id == task_id).first()
+    if not db_task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    db.delete(db_task)
+    db.commit()
+    return {"message": "Deleted successfully"}
+
+#  AbsenceRequest API (希望休)
+
 @app.get("/api/absence", response_model=List[schemas.AbsenceRequest])
 def read_absences(db: Session = Depends(get_db)):
-    # 全員の希望休を返します
     return db.query(models.AbsenceRequest).all()
 
 @app.post("/api/absence", response_model=schemas.AbsenceRequest)
 def create_absence(req: schemas.AbsenceRequestCreate, db: Session = Depends(get_db)):
-    # 重複チェック: 同じスタッフが同じ日に申請済みなら、既存のデータを返す(何もしない)
+    # 重複チェック
     existing = db.query(models.AbsenceRequest).filter(
         models.AbsenceRequest.staff_id == req.staff_id,
         models.AbsenceRequest.date == req.date
@@ -128,22 +139,22 @@ def delete_absence(id: int, db: Session = Depends(get_db)):
     db.commit()
     return {"message": "Deleted successfully"}
 
+#  DailyRequirement API (日次要件)
 
-#  日次要件 API (DailyRequirement)
 @app.get("/api/requirements", response_model=List[schemas.DailyRequirement])
 def read_requirements(db: Session = Depends(get_db)):
     return db.query(models.DailyRequirement).all()
 
 @app.post("/api/requirements", response_model=schemas.DailyRequirement)
 def create_or_update_requirement(req: schemas.DailyRequirementCreate, db: Session = Depends(get_db)):
-    # 「ある日付」の「ある業務」の要件が既に登録されているか探す
+    # 既存設定の検索
     existing = db.query(models.DailyRequirement).filter(
         models.DailyRequirement.date == req.date,
         models.DailyRequirement.task_id == req.task_id
     ).first()
     
     if existing:
-        # 既に設定があれば、人数を更新(上書き)
+        # 更新
         existing.count = req.count
         db.commit()
         db.refresh(existing)
@@ -155,3 +166,37 @@ def create_or_update_requirement(req: schemas.DailyRequirementCreate, db: Sessio
         db.commit()
         db.refresh(db_req)
         return db_req
+
+#  シフト生成実行 API (★NEW)
+
+@app.post("/api/generate-shift")
+def generate_shift(req: schemas.GenerateRequest, db: Session = Depends(get_db)):
+    """
+    指定された年月のシフトを自動生成し、ExcelのダウンロードURLを返す
+    """
+    print(f"★シフト生成開始: {req.year}年{req.month}月")
+
+    # 1. データベースから必要な全データを取得
+    staffs = db.query(models.Staff).all()
+    tasks = db.query(models.Task).all()
+    absences = db.query(models.AbsenceRequest).all()
+    requirements = db.query(models.DailyRequirement).all()
+
+    # 2. ソルバー(solver.py)を呼び出して計算実行
+    # 成功すれば Excelファイルのパス (例: "static/shift_2025_12_xxx.xlsx") が返る
+    excel_path = solver.generate_shift_excel(
+        staffs, tasks, requirements, absences, req.year, req.month
+    )
+
+    # 3. 結果の返却
+    if excel_path:
+        # ブラウザからアクセスできるURLに変換
+        # excel_path は "static/shift..." なので、頭に "/" をつけるだけでOK
+        download_url = "/" + excel_path
+        return {"download_url": download_url}
+    else:
+        # 解が見つからなかった場合
+        raise HTTPException(
+            status_code=400, 
+            detail="シフトを作成できませんでした。制約条件が厳しすぎるか、人が足りません。"
+        )
