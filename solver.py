@@ -116,12 +116,10 @@ def generate_shift_excel(staffs, tasks, requirements, absences, year, month):
             # そのスタッフのその日のタスク合計(0か1)
             is_working = sum(shifts[(s.id, d, t.id)] for t in tasks)
             total_drivers_working.append(is_working)
-        """
+        
         # スタッフ不足で解なしになるのを防ぐため、人数が足りる場合のみ制約追加
         if len(all_drivers) >= 6:
             model.Add(sum(total_drivers_working) >= 6)
-
-        """
 
     # ==========================================
     #  努力目標 (Soft Constraints)

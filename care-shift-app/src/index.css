@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* カレンダーのスタイル調整 */
+.fc {
+  border: none !important;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+}
+.fc-toolbar-title {
+  font-size: 1.25rem !important;
+  font-weight: 700 !important;
+  color: #1F2937;
+}
+.fc-col-header-cell {
+  background-color: #F9FAFB;
+  padding: 12px 0 !important;
+  font-weight: 600;
+  color: #4B5563;
+  border: none !important;
+  border-bottom: 1px solid #E5E7EB !important;
+}
+.fc-daygrid-day {
+  border: 1px solid #F3F4F6 !important;
+}
+.fc-button-primary {
+  background-color: #0F766E !important;
+  border-color: #0F766E !important;
+}
