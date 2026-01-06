@@ -136,9 +136,11 @@ def generate_shift_excel(staffs, tasks, requirements, absences, year, month):
     status = solver.Solve(model)
 
     if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:
-        return create_excel_file(solver, shifts, staffs, tasks, days, year, month)
+        excel_path = create_excel_file(solver, shifts, staffs, tasks, days, year, month)
+        shift_data = extract_shift_data(solver, shifts, staffs, tasks, days, year, month)
+        return excel_path, shift_data
     else:
-        return None
+        return None, None
 
 def create_excel_file(solver, shifts, staffs, tasks, days, year, month):
     """計算結果からExcelを作成する"""
@@ -184,3 +186,31 @@ def create_excel_file(solver, shifts, staffs, tasks, days, year, month):
     wb.save(filename)
     # ファイル名だけ返す (Webからアクセスするため)
     return filename
+
+
+def extract_shift_data(solver, shifts, staffs, tasks, days, year, month):
+    """Extract shift data as JSON-serializable dictionary for calendar display"""
+    shift_data = {}
+
+    # Create staff lookup for quick access
+    staff_map = {s.id: s for s in staffs}
+
+    for d in days:
+        date_str = f"{year}-{month:02d}-{d:02d}"
+        assignments = []
+
+        for t in tasks:
+            for s in staffs:
+                if solver.Value(shifts[(s.id, d, t.id)]) == 1:
+                    assignments.append({
+                        "staffId": s.id,
+                        "staffName": s.name,
+                        "taskId": t.id,
+                        "taskName": t.name,
+                        "isNurse": s.is_nurse,
+                    })
+
+        if assignments:
+            shift_data[date_str] = assignments
+
+    return shift_data

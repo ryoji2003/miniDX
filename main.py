@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List
 
@@ -12,6 +13,15 @@ from database import engine, get_db
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
+
+# CORS設定 (フロントエンドからのアクセスを許可)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],  # Vite dev server
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # staticディレクトリ内のファイルを /static というURLで公開する設定
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -183,8 +193,8 @@ def generate_shift(req: schemas.GenerateRequest, db: Session = Depends(get_db)):
     requirements = db.query(models.DailyRequirement).all()
 
     # 2. ソルバー(solver.py)を呼び出して計算実行
-    # 成功すれば Excelファイルのパス (例: "static/shift_2025_12_xxx.xlsx") が返る
-    excel_path = solver.generate_shift_excel(
+    # 成功すれば Excelファイルのパス (例: "static/shift_2025_12_xxx.xlsx") と shift_data が返る
+    excel_path, shift_data = solver.generate_shift_excel(
         staffs, tasks, requirements, absences, req.year, req.month
     )
 
@@ -193,10 +203,13 @@ def generate_shift(req: schemas.GenerateRequest, db: Session = Depends(get_db)):
         # ブラウザからアクセスできるURLに変換
         # excel_path は "static/shift..." なので、頭に "/" をつけるだけでOK
         download_url = "/" + excel_path
-        return {"download_url": download_url}
+        return {
+            "download_url": download_url,
+            "shift_data": shift_data
+        }
     else:
         # 解が見つからなかった場合
         raise HTTPException(
-            status_code=400, 
+            status_code=400,
             detail="シフトを作成できませんでした。制約条件が厳しすぎるか、人が足りません。"
         )
