@@ -4,10 +4,8 @@ import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import AdminLayout from '../components/AdminLayout';
 import { Card, Button } from '../components/ui/Layouts';
-import ConstraintInput from '../components/ConstraintInput';
-import DailyRequirements from '../components/DailyRequirements';
 import { getStaffs, generateShift, mapStaffToFrontend } from '../services/api';
-import { Wand2, Download, Loader2, ChevronDown, ChevronUp, AlertCircle, CheckCircle } from 'lucide-react';
+import { Wand2, Download, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
 
 const API_BASE_URL = 'http://localhost:8000';
 
@@ -80,8 +78,6 @@ export default function AdminDashboard() {
 
   // Calendar state
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [showConstraints, setShowConstraints] = useState(false);
-  const [showRequirements, setShowRequirements] = useState(false);
 
   // Calendar events (from generated shifts)
   const [events, setEvents] = useState([]);
@@ -141,7 +137,6 @@ export default function AdminDashboard() {
     setCurrentDate(info.view.currentStart);
   };
 
-  const currentMonth = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
   const displayMonth = `${currentDate.getFullYear()}年${currentDate.getMonth() + 1}月`;
 
   return (
@@ -169,7 +164,7 @@ export default function AdminDashboard() {
             ) : (
               <Wand2 className="mr-2 h-4 w-4" />
             )}
-            {generating ? '生成中...' : 'AIでシフトを自動生成'}
+            {generating ? '生成中...' : 'シフトを生成'}
           </Button>
         </div>
       </header>
@@ -224,38 +219,6 @@ export default function AdminDashboard() {
               )}
             </>
           )}
-
-          {/* Constraint Input Toggle */}
-          <div className="pt-4 border-t">
-            <button
-              onClick={() => setShowConstraints(!showConstraints)}
-              className="flex items-center justify-between w-full text-left font-semibold text-gray-700 py-2"
-            >
-              <span>希望休・制約条件</span>
-              {showConstraints ? (
-                <ChevronUp className="w-4 h-4" />
-              ) : (
-                <ChevronDown className="w-4 h-4" />
-              )}
-            </button>
-            {showConstraints && <ConstraintInput />}
-          </div>
-
-          {/* Daily Requirements Toggle */}
-          <div className="pt-4 border-t">
-            <button
-              onClick={() => setShowRequirements(!showRequirements)}
-              className="flex items-center justify-between w-full text-left font-semibold text-gray-700 py-2"
-            >
-              <span>日次要件設定</span>
-              {showRequirements ? (
-                <ChevronUp className="w-4 h-4" />
-              ) : (
-                <ChevronDown className="w-4 h-4" />
-              )}
-            </button>
-            {showRequirements && <DailyRequirements selectedMonth={currentMonth} />}
-          </div>
         </div>
 
         {/* 右側：カレンダー */}
@@ -316,9 +279,9 @@ export default function AdminDashboard() {
           <div className="mt-4 p-4 bg-gray-50 rounded-lg text-sm text-gray-600">
             <p className="font-medium mb-2">使い方:</p>
             <ol className="list-decimal list-inside space-y-1">
-              <li>左側のパネルで「希望休・制約条件」を設定します</li>
-              <li>「日次要件設定」で各日に必要な人数を設定します</li>
-              <li>「AIでシフトを自動生成」ボタンをクリックします</li>
+              <li>サイドバーの「希望休・制約条件」で制約を設定します</li>
+              <li>サイドバーの「日次要件設定」で各日に必要な人数を設定します</li>
+              <li>「シフトを生成」ボタンをクリックします</li>
               <li>生成されたExcelファイルをダウンロードします</li>
             </ol>
           </div>

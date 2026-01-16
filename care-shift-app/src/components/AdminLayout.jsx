@@ -1,7 +1,7 @@
 // src/components/AdminLayout.jsx
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Users, Calendar as CalendarIcon, LayoutDashboard } from 'lucide-react';
+import { Users, Calendar as CalendarIcon, LayoutDashboard, UserX, ClipboardList } from 'lucide-react';
 import { Button, Card } from './ui/Layouts';
 
 export default function AdminLayout({ children }) {
@@ -31,22 +31,35 @@ export default function AdminLayout({ children }) {
           </Link>
           
           <Link to="/admin/staff">
-            <Button 
-              variant={isActive('/admin/staff') ? "default" : "ghost"} 
+            <Button
+              variant={isActive('/admin/staff') ? "default" : "ghost"}
               className={`w-full justify-start ${isActive('/admin/staff') ? "bg-primary/10 text-primary hover:bg-primary/20" : "text-gray-500"}`}
             >
               <Users className="mr-2 h-4 w-4" />
               スタッフ管理
             </Button>
           </Link>
-        </nav>
 
-        <div className="mt-auto">
-          <Card className="p-4 bg-primary/5 border-none">
-            <p className="text-sm text-gray-600 mb-2">今月のシフト作成率</p>
-            <div className="text-2xl font-bold text-primary">80%</div>
-          </Card>
-        </div>
+          <Link to="/admin/constraints">
+            <Button
+              variant={isActive('/admin/constraints') ? "default" : "ghost"}
+              className={`w-full justify-start ${isActive('/admin/constraints') ? "bg-primary/10 text-primary hover:bg-primary/20" : "text-gray-500"}`}
+            >
+              <UserX className="mr-2 h-4 w-4" />
+              希望休・制約条件
+            </Button>
+          </Link>
+
+          <Link to="/admin/requirements">
+            <Button
+              variant={isActive('/admin/requirements') ? "default" : "ghost"}
+              className={`w-full justify-start ${isActive('/admin/requirements') ? "bg-primary/10 text-primary hover:bg-primary/20" : "text-gray-500"}`}
+            >
+              <ClipboardList className="mr-2 h-4 w-4" />
+              日次要件設定
+            </Button>
+          </Link>
+        </nav>
       </aside>
 
       {/* メインコンテンツエリア（ページごとに中身が変わる） */}
