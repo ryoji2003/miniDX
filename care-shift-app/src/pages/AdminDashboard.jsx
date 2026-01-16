@@ -6,6 +6,7 @@ import AdminLayout from '../components/AdminLayout';
 import { Card, Button } from '../components/ui/Layouts';
 import { getStaffs, generateShift, mapStaffToFrontend } from '../services/api';
 import { Wand2, Download, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
+import { MOCK_SHIFTS } from '../mocks/data'; // Vercelでの公開するため
 
 const API_BASE_URL = 'http://localhost:8000';
 
@@ -89,7 +90,10 @@ export default function AdminDashboard() {
   const fetchStaffs = async () => {
     try {
       setLoading(true);
-      const data = await getStaffs();
+      //const data = await getStaffs(); //loacl動かす用
+      setEvents(MOCK_SHIFTS); // ダミーデータをセット for Vercel deployment
+      setLoading(false);// Vercelでの公開するため
+
       setStaffs(data.map(mapStaffToFrontend));
     } catch (err) {
       console.error('Failed to fetch staffs:', err);
