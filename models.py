@@ -1,6 +1,7 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Date
 from sqlalchemy.orm import relationship
 from database import Base
+from datetime import datetime
 
 # --- スタッフ (Staff) ---
 class Staff(Base):
@@ -49,3 +50,22 @@ class DailyRequirement(Base):
     date = Column(String, index=True)
     task_id = Column(Integer, ForeignKey("tasks.id"))
     count = Column(Integer, default=1)
+
+
+# --- 休暇申請 (RequestedDayOff) ---
+class RequestedDayOff(Base):
+    __tablename__ = "requested_days_off"
+
+    id = Column(Integer, primary_key=True, index=True)
+    staff_id = Column(Integer, ForeignKey("staffs.id"), nullable=False, index=True)
+    request_date = Column(Date, nullable=False, index=True)
+    reason = Column(String(500), nullable=True)
+    status = Column(String(20), default="pending", index=True)  # pending/approved/rejected
+    rejection_reason = Column(String(500), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    approved_at = Column(DateTime, nullable=True)
+    approved_by = Column(String(100), nullable=True)  # Approver name (simplified, no User table)
+
+    # Relationships
+    staff = relationship("Staff", backref="requested_days_off")

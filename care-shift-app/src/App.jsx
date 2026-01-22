@@ -5,19 +5,24 @@ import AdminDashboard from './pages/AdminDashboard';
 import StaffManagement from './pages/StaffManagement';
 import ConstraintPage from './pages/ConstraintPage';
 import RequirementsPage from './pages/RequirementsPage';
-
-const UserApp = () => <div className="p-4">ユーザー画面（モバイル）は作成中です</div>;
+import ManageRequestDayOffPage from './pages/admin/ManageRequestDayOffPage';
+import RequestDayOffPage from './pages/staff/RequestDayOffPage';
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
+        {/* Admin routes */}
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/admin/staff" element={<StaffManagement />} />
         <Route path="/admin/constraints" element={<ConstraintPage />} />
         <Route path="/admin/requirements" element={<RequirementsPage />} />
-        
-        <Route path="/user" element={<UserApp />} />
+        <Route path="/admin/day-off-requests" element={<ManageRequestDayOffPage />} />
+
+        {/* Staff routes */}
+        <Route path="/staff/request-day-off" element={<RequestDayOffPage />} />
+
+        {/* Default redirect */}
         <Route path="/" element={<Navigate to="/admin" replace />} />
       </Routes>
     </BrowserRouter>

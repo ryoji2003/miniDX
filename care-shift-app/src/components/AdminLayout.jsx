@@ -1,7 +1,7 @@
 // src/components/AdminLayout.jsx
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Users, Calendar as CalendarIcon, LayoutDashboard, UserX, ClipboardList } from 'lucide-react';
+import { Users, Calendar as CalendarIcon, LayoutDashboard, UserX, ClipboardList, CalendarDays, CalendarPlus } from 'lucide-react';
 import { Button, Card } from './ui/Layouts';
 
 export default function AdminLayout({ children }) {
@@ -59,6 +59,29 @@ export default function AdminLayout({ children }) {
               日次要件設定
             </Button>
           </Link>
+
+          <Link to="/admin/day-off-requests">
+            <Button
+              variant={isActive('/admin/day-off-requests') ? "default" : "ghost"}
+              className={`w-full justify-start ${isActive('/admin/day-off-requests') ? "bg-primary/10 text-primary hover:bg-primary/20" : "text-gray-500"}`}
+            >
+              <CalendarDays className="mr-2 h-4 w-4" />
+              休暇申請管理
+            </Button>
+          </Link>
+
+          <div className="pt-4 mt-4 border-t">
+            <p className="text-xs text-gray-400 mb-2 px-2">スタッフ向け</p>
+            <Link to="/staff/request-day-off">
+              <Button
+                variant={isActive('/staff/request-day-off') ? "default" : "ghost"}
+                className={`w-full justify-start ${isActive('/staff/request-day-off') ? "bg-primary/10 text-primary hover:bg-primary/20" : "text-gray-500"}`}
+              >
+                <CalendarPlus className="mr-2 h-4 w-4" />
+                休暇申請
+              </Button>
+            </Link>
+          </div>
         </nav>
       </aside>
 

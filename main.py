@@ -1,8 +1,11 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Query
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from typing import List
+from sqlalchemy import and_
+from typing import List, Optional
+from datetime import date, datetime
+from collections import defaultdict
 
 import models
 import schemas
@@ -213,3 +216,441 @@ def generate_shift(req: schemas.GenerateRequest, db: Session = Depends(get_db)):
             status_code=400,
             detail="シフトを作成できませんでした。制約条件が厳しすぎるか、人が足りません。"
         )
+
+
+# ============================================================
+#  RequestedDayOff API (休暇申請 - Staff Interface)
+# ============================================================
+
+@app.post("/api/staff/requested-days-off", response_model=schemas.RequestedDayOff)
+def create_day_off_request(req: schemas.RequestedDayOffCreate, db: Session = Depends(get_db)):
+    """Submit a single day-off request"""
+    # Validate staff exists
+    staff = db.query(models.Staff).filter(models.Staff.id == req.staff_id).first()
+    if not staff:
+        raise HTTPException(status_code=404, detail="Staff not found")
+
+    # Validate date is not in the past
+    if req.request_date < date.today():
+        raise HTTPException(status_code=400, detail="Cannot request day off for past dates")
+
+    # Check for duplicate requests
+    existing = db.query(models.RequestedDayOff).filter(
+        models.RequestedDayOff.staff_id == req.staff_id,
+        models.RequestedDayOff.request_date == req.request_date
+    ).first()
+
+    if existing:
+        raise HTTPException(status_code=400, detail="Day-off request already exists for this date")
+
+    db_req = models.RequestedDayOff(
+        staff_id=req.staff_id,
+        request_date=req.request_date,
+        reason=req.reason
+    )
+    db.add(db_req)
+    db.commit()
+    db.refresh(db_req)
+
+    # Add staff name for response
+    result = schemas.RequestedDayOff.model_validate(db_req)
+    result.staff_name = staff.name
+    return result
+
+
+@app.post("/api/staff/requested-days-off/bulk", response_model=List[schemas.RequestedDayOff])
+def create_bulk_day_off_requests(req: schemas.RequestedDayOffBulkCreate, db: Session = Depends(get_db)):
+    """Submit multiple day-off requests at once (for date range selection)"""
+    # Validate staff exists
+    staff = db.query(models.Staff).filter(models.Staff.id == req.staff_id).first()
+    if not staff:
+        raise HTTPException(status_code=404, detail="Staff not found")
+
+    created_requests = []
+    for request_date in req.request_dates:
+        # Skip past dates
+        if request_date < date.today():
+            continue
+
+        # Skip existing requests
+        existing = db.query(models.RequestedDayOff).filter(
+            models.RequestedDayOff.staff_id == req.staff_id,
+            models.RequestedDayOff.request_date == request_date
+        ).first()
+
+        if existing:
+            continue
+
+        db_req = models.RequestedDayOff(
+            staff_id=req.staff_id,
+            request_date=request_date,
+            reason=req.reason
+        )
+        db.add(db_req)
+        created_requests.append(db_req)
+
+    db.commit()
+
+    # Refresh and add staff names
+    results = []
+    for db_req in created_requests:
+        db.refresh(db_req)
+        result = schemas.RequestedDayOff.model_validate(db_req)
+        result.staff_name = staff.name
+        results.append(result)
+
+    return results
+
+
+@app.get("/api/staff/requested-days-off", response_model=List[schemas.RequestedDayOff])
+def get_staff_day_off_requests(
+    staff_id: int = Query(..., description="Staff ID to filter by"),
+    status: Optional[str] = Query(None, description="Filter by status: pending/approved/rejected"),
+    year: Optional[int] = Query(None, description="Filter by year"),
+    month: Optional[int] = Query(None, description="Filter by month"),
+    db: Session = Depends(get_db)
+):
+    """Get day-off requests for a specific staff member"""
+    staff = db.query(models.Staff).filter(models.Staff.id == staff_id).first()
+    if not staff:
+        raise HTTPException(status_code=404, detail="Staff not found")
+
+    query = db.query(models.RequestedDayOff).filter(models.RequestedDayOff.staff_id == staff_id)
+
+    if status:
+        query = query.filter(models.RequestedDayOff.status == status)
+
+    if year and month:
+        # Filter by year-month
+        start_date = date(year, month, 1)
+        if month == 12:
+            end_date = date(year + 1, 1, 1)
+        else:
+            end_date = date(year, month + 1, 1)
+        query = query.filter(
+            models.RequestedDayOff.request_date >= start_date,
+            models.RequestedDayOff.request_date < end_date
+        )
+
+    requests = query.order_by(models.RequestedDayOff.request_date).all()
+
+    results = []
+    for req in requests:
+        result = schemas.RequestedDayOff.model_validate(req)
+        result.staff_name = staff.name
+        results.append(result)
+
+    return results
+
+
+@app.get("/api/staff/requested-days-off/{request_id}", response_model=schemas.RequestedDayOff)
+def get_day_off_request_detail(request_id: int, db: Session = Depends(get_db)):
+    """Get details of a specific day-off request"""
+    db_req = db.query(models.RequestedDayOff).filter(models.RequestedDayOff.id == request_id).first()
+    if not db_req:
+        raise HTTPException(status_code=404, detail="Day-off request not found")
+
+    staff = db.query(models.Staff).filter(models.Staff.id == db_req.staff_id).first()
+    result = schemas.RequestedDayOff.model_validate(db_req)
+    result.staff_name = staff.name if staff else None
+    return result
+
+
+@app.put("/api/staff/requested-days-off/{request_id}", response_model=schemas.RequestedDayOff)
+def update_day_off_request(
+    request_id: int,
+    update: schemas.RequestedDayOffUpdate,
+    db: Session = Depends(get_db)
+):
+    """Update a pending day-off request (only pending requests can be modified)"""
+    db_req = db.query(models.RequestedDayOff).filter(models.RequestedDayOff.id == request_id).first()
+    if not db_req:
+        raise HTTPException(status_code=404, detail="Day-off request not found")
+
+    if db_req.status != "pending":
+        raise HTTPException(status_code=400, detail="Only pending requests can be modified")
+
+    if update.request_date is not None:
+        if update.request_date < date.today():
+            raise HTTPException(status_code=400, detail="Cannot request day off for past dates")
+
+        # Check for duplicate
+        existing = db.query(models.RequestedDayOff).filter(
+            models.RequestedDayOff.staff_id == db_req.staff_id,
+            models.RequestedDayOff.request_date == update.request_date,
+            models.RequestedDayOff.id != request_id
+        ).first()
+
+        if existing:
+            raise HTTPException(status_code=400, detail="Day-off request already exists for this date")
+
+        db_req.request_date = update.request_date
+
+    if update.reason is not None:
+        db_req.reason = update.reason
+
+    db_req.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(db_req)
+
+    staff = db.query(models.Staff).filter(models.Staff.id == db_req.staff_id).first()
+    result = schemas.RequestedDayOff.model_validate(db_req)
+    result.staff_name = staff.name if staff else None
+    return result
+
+
+@app.delete("/api/staff/requested-days-off/{request_id}")
+def delete_day_off_request(request_id: int, db: Session = Depends(get_db)):
+    """Delete a day-off request (only pending requests can be deleted)"""
+    db_req = db.query(models.RequestedDayOff).filter(models.RequestedDayOff.id == request_id).first()
+    if not db_req:
+        raise HTTPException(status_code=404, detail="Day-off request not found")
+
+    if db_req.status == "approved":
+        raise HTTPException(status_code=400, detail="Approved requests cannot be deleted")
+
+    db.delete(db_req)
+    db.commit()
+    return {"message": "Day-off request deleted successfully"}
+
+
+@app.get("/api/staff/requested-days-off/calendar/all", response_model=List[schemas.RequestedDayOffCalendarItem])
+def get_all_staff_day_off_calendar(
+    year: int = Query(..., description="Year"),
+    month: int = Query(..., description="Month"),
+    db: Session = Depends(get_db)
+):
+    """Get all approved day-off requests for calendar display (staff view - only shows approved)"""
+    start_date = date(year, month, 1)
+    if month == 12:
+        end_date = date(year + 1, 1, 1)
+    else:
+        end_date = date(year, month + 1, 1)
+
+    requests = db.query(models.RequestedDayOff).filter(
+        models.RequestedDayOff.request_date >= start_date,
+        models.RequestedDayOff.request_date < end_date,
+        models.RequestedDayOff.status == "approved"
+    ).all()
+
+    results = []
+    for req in requests:
+        staff = db.query(models.Staff).filter(models.Staff.id == req.staff_id).first()
+        results.append(schemas.RequestedDayOffCalendarItem(
+            id=req.id,
+            staff_id=req.staff_id,
+            staff_name=staff.name if staff else "Unknown",
+            request_date=req.request_date,
+            status=req.status
+        ))
+
+    return results
+
+
+# ============================================================
+#  RequestedDayOff API (休暇申請 - Admin Interface)
+# ============================================================
+
+@app.get("/api/admin/requested-days-off", response_model=List[schemas.RequestedDayOff])
+def get_all_day_off_requests(
+    status: Optional[str] = Query(None, description="Filter by status: pending/approved/rejected"),
+    staff_id: Optional[int] = Query(None, description="Filter by staff ID"),
+    year: Optional[int] = Query(None, description="Filter by year"),
+    month: Optional[int] = Query(None, description="Filter by month"),
+    db: Session = Depends(get_db)
+):
+    """Get all day-off requests (admin view)"""
+    query = db.query(models.RequestedDayOff)
+
+    if status:
+        query = query.filter(models.RequestedDayOff.status == status)
+
+    if staff_id:
+        query = query.filter(models.RequestedDayOff.staff_id == staff_id)
+
+    if year and month:
+        start_date = date(year, month, 1)
+        if month == 12:
+            end_date = date(year + 1, 1, 1)
+        else:
+            end_date = date(year, month + 1, 1)
+        query = query.filter(
+            models.RequestedDayOff.request_date >= start_date,
+            models.RequestedDayOff.request_date < end_date
+        )
+
+    requests = query.order_by(models.RequestedDayOff.created_at.desc()).all()
+
+    results = []
+    for req in requests:
+        staff = db.query(models.Staff).filter(models.Staff.id == req.staff_id).first()
+        result = schemas.RequestedDayOff.model_validate(req)
+        result.staff_name = staff.name if staff else "Unknown"
+        results.append(result)
+
+    return results
+
+
+@app.put("/api/admin/requested-days-off/{request_id}/approve", response_model=schemas.RequestedDayOff)
+def approve_day_off_request(
+    request_id: int,
+    approval: schemas.RequestedDayOffApprove,
+    db: Session = Depends(get_db)
+):
+    """Approve a day-off request"""
+    db_req = db.query(models.RequestedDayOff).filter(models.RequestedDayOff.id == request_id).first()
+    if not db_req:
+        raise HTTPException(status_code=404, detail="Day-off request not found")
+
+    if db_req.status != "pending":
+        raise HTTPException(status_code=400, detail="Only pending requests can be approved")
+
+    db_req.status = "approved"
+    db_req.approved_at = datetime.utcnow()
+    db_req.approved_by = approval.approved_by
+    db_req.updated_at = datetime.utcnow()
+
+    db.commit()
+    db.refresh(db_req)
+
+    staff = db.query(models.Staff).filter(models.Staff.id == db_req.staff_id).first()
+    result = schemas.RequestedDayOff.model_validate(db_req)
+    result.staff_name = staff.name if staff else None
+    return result
+
+
+@app.put("/api/admin/requested-days-off/{request_id}/reject", response_model=schemas.RequestedDayOff)
+def reject_day_off_request(
+    request_id: int,
+    rejection: schemas.RequestedDayOffReject,
+    db: Session = Depends(get_db)
+):
+    """Reject a day-off request"""
+    db_req = db.query(models.RequestedDayOff).filter(models.RequestedDayOff.id == request_id).first()
+    if not db_req:
+        raise HTTPException(status_code=404, detail="Day-off request not found")
+
+    if db_req.status != "pending":
+        raise HTTPException(status_code=400, detail="Only pending requests can be rejected")
+
+    db_req.status = "rejected"
+    db_req.rejection_reason = rejection.rejection_reason
+    db_req.approved_by = rejection.rejected_by
+    db_req.updated_at = datetime.utcnow()
+
+    db.commit()
+    db.refresh(db_req)
+
+    staff = db.query(models.Staff).filter(models.Staff.id == db_req.staff_id).first()
+    result = schemas.RequestedDayOff.model_validate(db_req)
+    result.staff_name = staff.name if staff else None
+    return result
+
+
+@app.put("/api/admin/requested-days-off/bulk-approve")
+def bulk_approve_day_off_requests(
+    request_ids: List[int],
+    approval: schemas.RequestedDayOffApprove,
+    db: Session = Depends(get_db)
+):
+    """Approve multiple day-off requests at once"""
+    approved_count = 0
+
+    for request_id in request_ids:
+        db_req = db.query(models.RequestedDayOff).filter(models.RequestedDayOff.id == request_id).first()
+        if db_req and db_req.status == "pending":
+            db_req.status = "approved"
+            db_req.approved_at = datetime.utcnow()
+            db_req.approved_by = approval.approved_by
+            db_req.updated_at = datetime.utcnow()
+            approved_count += 1
+
+    db.commit()
+    return {"message": f"Approved {approved_count} requests", "approved_count": approved_count}
+
+
+@app.get("/api/admin/requested-days-off/calendar", response_model=List[schemas.RequestedDayOffCalendarItem])
+def get_admin_day_off_calendar(
+    year: int = Query(..., description="Year"),
+    month: int = Query(..., description="Month"),
+    include_pending: bool = Query(True, description="Include pending requests"),
+    db: Session = Depends(get_db)
+):
+    """Get all day-off requests for admin calendar (shows all statuses)"""
+    start_date = date(year, month, 1)
+    if month == 12:
+        end_date = date(year + 1, 1, 1)
+    else:
+        end_date = date(year, month + 1, 1)
+
+    query = db.query(models.RequestedDayOff).filter(
+        models.RequestedDayOff.request_date >= start_date,
+        models.RequestedDayOff.request_date < end_date
+    )
+
+    if not include_pending:
+        query = query.filter(models.RequestedDayOff.status == "approved")
+    else:
+        query = query.filter(models.RequestedDayOff.status.in_(["pending", "approved"]))
+
+    requests = query.all()
+
+    results = []
+    for req in requests:
+        staff = db.query(models.Staff).filter(models.Staff.id == req.staff_id).first()
+        results.append(schemas.RequestedDayOffCalendarItem(
+            id=req.id,
+            staff_id=req.staff_id,
+            staff_name=staff.name if staff else "Unknown",
+            request_date=req.request_date,
+            status=req.status
+        ))
+
+    return results
+
+
+@app.get("/api/admin/requested-days-off/statistics", response_model=List[schemas.RequestedDayOffStatistics])
+def get_day_off_statistics(
+    year: int = Query(..., description="Year"),
+    month: int = Query(..., description="Month"),
+    db: Session = Depends(get_db)
+):
+    """Get day-off statistics per day for the month (for admin calendar warnings)"""
+    start_date = date(year, month, 1)
+    if month == 12:
+        end_date = date(year + 1, 1, 1)
+    else:
+        end_date = date(year, month + 1, 1)
+
+    requests = db.query(models.RequestedDayOff).filter(
+        models.RequestedDayOff.request_date >= start_date,
+        models.RequestedDayOff.request_date < end_date,
+        models.RequestedDayOff.status.in_(["pending", "approved"])
+    ).all()
+
+    # Group by date
+    date_stats = defaultdict(lambda: {"total": 0, "approved": 0, "pending": 0, "staff_names": []})
+
+    for req in requests:
+        staff = db.query(models.Staff).filter(models.Staff.id == req.staff_id).first()
+        staff_name = staff.name if staff else "Unknown"
+
+        stats = date_stats[req.request_date]
+        stats["total"] += 1
+        if req.status == "approved":
+            stats["approved"] += 1
+        else:
+            stats["pending"] += 1
+        stats["staff_names"].append(staff_name)
+
+    results = []
+    for req_date, stats in sorted(date_stats.items()):
+        results.append(schemas.RequestedDayOffStatistics(
+            date=req_date,
+            total_requests=stats["total"],
+            approved_count=stats["approved"],
+            pending_count=stats["pending"],
+            staff_names=stats["staff_names"]
+        ))
+
+    return results
