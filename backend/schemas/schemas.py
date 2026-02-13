@@ -55,7 +55,7 @@ class AbsenceRequestCreate(AbsenceRequestBase):
 class AbsenceRequest(AbsenceRequestBase):
     id: int
     # 誰の休みか名前も返すと便利なので、本来はjoinするが今回は簡易的にID管理
-    
+
     class Config:
         from_attributes = True
 

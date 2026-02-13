@@ -1,7 +1,8 @@
 // src/components/ConstraintInput.jsx
 import React, { useState, useEffect } from 'react';
 import { Card, Button } from './ui/Layouts';
-import { getStaffs, getAbsences, createAbsence, deleteAbsence, mapStaffToFrontend } from '../services/api';
+import { getStaffs, mapStaffToFrontend } from '../api/staff';
+import { getAbsences, createAbsence, deleteAbsence } from '../api/shift';
 import { CalendarDays, UserX, Trash2, Plus, Loader2 } from 'lucide-react';
 
 export default function ConstraintInput() {

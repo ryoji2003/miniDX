@@ -4,7 +4,8 @@ import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import AdminLayout from '../components/AdminLayout';
 import { Card, Button } from '../components/ui/Layouts';
-import { getStaffs, generateShift, mapStaffToFrontend } from '../services/api';
+import { getStaffs, mapStaffToFrontend } from '../api/staff';
+import { generateShift } from '../api/shift';
 import { Wand2, Download, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
 import { MOCK_SHIFTS } from '../mocks/data'; // Vercelでの公開するため
 

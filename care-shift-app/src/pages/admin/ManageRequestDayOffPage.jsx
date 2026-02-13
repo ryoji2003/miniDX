@@ -5,15 +5,15 @@ import AdminLayout from '../../components/AdminLayout';
 import RequestDayOffApprovalList from '../../components/admin/RequestDayOffApprovalList';
 import AdminDayOffCalendar from '../../components/admin/AdminDayOffCalendar';
 import { Card, Button, cn } from '../../components/ui/Layouts';
+import { getStaffs } from '../../api/staff';
 import {
-  getStaffs,
   getAllDayOffRequests,
   approveDayOffRequest,
   rejectDayOffRequest,
   bulkApproveDayOffRequests,
   getAdminDayOffCalendar,
   getDayOffStatistics,
-} from '../../services/api';
+} from '../../api/request';
 
 // Admin name (in production, this would come from auth)
 const ADMIN_NAME = '管理者';

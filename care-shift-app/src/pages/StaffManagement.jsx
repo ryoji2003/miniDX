@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import AdminLayout from '../components/AdminLayout';
 import { Card, Button } from '../components/ui/Layouts';
 import StaffForm from '../components/StaffForm';
-import { getStaffs, createStaff, updateStaff, deleteStaff, mapStaffToFrontend } from '../services/api';
+import { getStaffs, createStaff, updateStaff, deleteStaff, mapStaffToFrontend } from '../api/staff';
 import { Plus, Clock, BadgeCheck, Pencil, Trash2, Loader2, AlertCircle } from 'lucide-react';
 
 export default function StaffManagement() {

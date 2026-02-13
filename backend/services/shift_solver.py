@@ -9,14 +9,14 @@ def generate_shift_excel(staffs, tasks, requirements, absences, year, month):
     データベースのデータを受け取り、シフトを計算してExcelファイルのパスを返す関数
     """
     model = cp_model.CpModel()
-    
+
     # --- 日付の準備 ---
     # 指定された月の日数 (28-31) を計算
     if month == 12:
         next_month = datetime.date(year + 1, 1, 1)
     else:
         next_month = datetime.date(year, month + 1, 1)
-    
+
     last_day = (next_month - datetime.timedelta(days=1)).day
     days = list(range(1, last_day + 1)) # [1, 2, ..., 31]
 
@@ -105,7 +105,7 @@ def generate_shift_excel(staffs, tasks, requirements, absences, year, month):
     # 毎日、「出勤している人」の中で、「運転できる人」が規定数以上必要
     # license_type: 1(普通), 2(ワゴン)
     # is_part_time: Trueなら運転不可
-    
+
     # 普通車以上を運転できる人 (License>=1 かつ 常勤)
     all_drivers = [s for s in staffs if s.license_type >= 1 and not s.is_part_time]
 
@@ -116,7 +116,7 @@ def generate_shift_excel(staffs, tasks, requirements, absences, year, month):
             # そのスタッフのその日のタスク合計(0か1)
             is_working = sum(shifts[(s.id, d, t.id)] for t in tasks)
             total_drivers_working.append(is_working)
-        
+
         # スタッフ不足で解なしになるのを防ぐため、人数が足りる場合のみ制約追加
         if len(all_drivers) >= 6:
             model.Add(sum(total_drivers_working) >= 6)
@@ -124,7 +124,7 @@ def generate_shift_excel(staffs, tasks, requirements, absences, year, month):
     # ==========================================
     #  努力目標 (Soft Constraints)
     # ==========================================
-    
+
     # S1: 勤務日数の平準化 (簡易版: 上限を超えない)
     for s in staffs:
         total_work = sum(shifts[(s.id, d, t.id)] for d in days for t in tasks)
@@ -147,7 +147,7 @@ def create_excel_file(solver, shifts, staffs, tasks, days, year, month):
     wb = Workbook()
     ws = wb.active
     ws.title = f"{month}月シフト"
-    
+
     # スタイル
     font_header = Font(bold=True, color="FFFFFF")
     fill_header = PatternFill("solid", fgColor="007BFF")
@@ -164,24 +164,24 @@ def create_excel_file(solver, shifts, staffs, tasks, days, year, month):
     # データ出力
     for row_idx, t in enumerate(tasks, start=2):
         ws.cell(row=row_idx, column=1, value=t.name).alignment = center
-        
+
         for col_idx, d in enumerate(days, start=2):
             assigned = []
             for s in staffs:
                 if solver.Value(shifts[(s.id, d, t.id)]) == 1:
                     assigned.append(s.name)
-            
+
             val = "\n".join(assigned)
             cell = ws.cell(row=row_idx, column=col_idx, value=val)
             cell.alignment = center
-            
+
             if not val:
                 cell.fill = PatternFill("solid", fgColor="EEEEEE")
 
     # staticフォルダに保存
     if not os.path.exists("static"):
         os.makedirs("static")
-        
+
     filename = f"static/shift_{year}_{month}_{datetime.datetime.now().strftime('%H%M%S')}.xlsx"
     wb.save(filename)
     # ファイル名だけ返す (Webからアクセスするため)

@@ -1,7 +1,8 @@
 // src/components/DailyRequirements.jsx
 import React, { useState, useEffect } from 'react';
 import { Card, Button } from './ui/Layouts';
-import { getTasks, getRequirements, createOrUpdateRequirement } from '../services/api';
+import { getTasks } from '../api/task';
+import { getRequirements, createOrUpdateRequirement } from '../api/shift';
 import { ClipboardList, Save, Loader2, Info } from 'lucide-react';
 
 // Default requirements based on spec

@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Date
 from sqlalchemy.orm import relationship
-from database import Base
+from backend.core.database import Base
 from datetime import datetime
 
 # --- スタッフ (Staff) ---
@@ -10,13 +10,13 @@ class Staff(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, index=True)
     work_limit = Column(Integer, default=20)   # 月の勤務上限
-    
+
     # 免許タイプ (0:なし, 1:普通車のみ, 2:ワゴン可)
     license_type = Column(Integer, default=0)
-    
+
     # パートフラグ (True:パート/運転不可, False:常勤)
     is_part_time = Column(Boolean, default=False)
-    
+
     # 訓練限定フラグ (True:訓練と運転のみ可, False:全業務可)
     can_only_train = Column(Boolean, default=False)
 
