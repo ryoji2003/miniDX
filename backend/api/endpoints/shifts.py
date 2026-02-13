@@ -4,8 +4,11 @@ from typing import List
 
 from backend.schemas import schemas
 from backend.core.database import get_db
+from backend.core.logging import get_logger
 from backend.crud import crud_shift
 from backend.solver import engine as shift_solver
+
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api", tags=["shifts"])
 
@@ -52,7 +55,7 @@ def create_or_update_requirement(req: schemas.DailyRequirementCreate, db: Sessio
 @router.post("/generate-shift")
 def generate_shift(req: schemas.GenerateRequest, db: Session = Depends(get_db)):
     """指定された年月のシフトを自動生成し、ExcelのダウンロードURLを返す"""
-    print(f"★シフト生成開始: {req.year}年{req.month}月")
+    logger.info("シフト生成開始: %d年%d月", req.year, req.month)
 
     staffs, tasks, absences, requirements = crud_shift.get_all_shift_data(db)
 

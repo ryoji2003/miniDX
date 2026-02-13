@@ -9,7 +9,7 @@ import { generateShift } from '../api/shift';
 import { Wand2, Download, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
 import { MOCK_SHIFTS } from '../mocks/data'; // Vercelでの公開するため
 
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 // Color mapping for different task types
 const TASK_COLORS = {

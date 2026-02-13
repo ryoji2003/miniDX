@@ -1,5 +1,5 @@
 import datetime
-DRIVER_NUMBER = 6
+from backend.schemas.enums import TaskCategory, DRIVER_MIN_COUNT
 
 class ShiftConstraints:
     def __init__(self, model, shifts, staffs, tasks, days, year, month):
@@ -66,7 +66,7 @@ class ShiftConstraints:
 
     def _c4_nurse_exclusive(self):
         """C4: 看護業務は看護師のみ"""
-        nurse_tasks = [t for t in self.tasks if "看護" in t.name]
+        nurse_tasks = [t for t in self.tasks if TaskCategory.NURSING.value in t.name]
         non_nurse_staffs = [s for s in self.staffs if not s.is_nurse]
 
         for task in nurse_tasks:
@@ -76,7 +76,7 @@ class ShiftConstraints:
 
     def _c5_training_exclusive(self):
         """C5: 訓練限定スタッフは訓練のみ"""
-        train_tasks = [t for t in self.tasks if "訓練" in t.name]
+        train_tasks = [t for t in self.tasks if TaskCategory.TRAINING.value in t.name]
         train_task_ids = {t.id for t in train_tasks}
         
         training_only_staffs = [s for s in self.staffs if s.can_only_train]
@@ -95,7 +95,7 @@ class ShiftConstraints:
         drivers = [s for s in self.staffs if s.license_type >= 1 and not s.is_part_time]
         
         # スタッフが十分いる場合のみ制約発動
-        if len(drivers) >= DRIVER_NUMBER:
+        if len(drivers) >= DRIVER_MIN_COUNT:
             for d in self.days:
                 # その日働いているドライバーの数
                 working_vars = []
@@ -103,7 +103,7 @@ class ShiftConstraints:
                     task_vars = [self.shifts[(s.id, d, t.id)] for t in self.tasks]
                     working_vars.append(sum(task_vars))
                 
-                self.model.Add(sum(working_vars) >= DRIVER_NUMBER)
+                self.model.Add(sum(working_vars) >= DRIVER_MIN_COUNT)
 
     def _s1_work_limit(self):
         """S1: 勤務日数上限"""

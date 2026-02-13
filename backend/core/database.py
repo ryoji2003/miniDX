@@ -2,12 +2,11 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-# SQLiteデータベースのファイル名
-SQLALCHEMY_DATABASE_URL = "sqlite:///./shift.db"
+from backend.core.config import settings
 
 # データベースエンジンの作成
 engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
+    settings.DATABASE_URL, connect_args={"check_same_thread": False}
 )
 
 # セッション（DBとの会話用）の作成
