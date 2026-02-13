@@ -5,13 +5,12 @@ from typing import List
 from backend.schemas import schemas
 from backend.core.database import get_db
 from backend.crud import crud_shift
-from backend.services import shift_solver
+from backend.solver import engine as shift_solver
 
 router = APIRouter(prefix="/api", tags=["shifts"])
 
 
-# --- AbsenceRequest ---
-
+# AbsenceRequest
 @router.get("/absence", response_model=List[schemas.AbsenceRequest])
 def read_absences(db: Session = Depends(get_db)):
     return crud_shift.get_absences(db)
@@ -33,8 +32,7 @@ def delete_absence(id: int, db: Session = Depends(get_db)):
     crud_shift.delete_absence(db, db_req)
     return {"message": "Deleted successfully"}
 
-
-# --- DailyRequirement ---
+# DailyRequirement
 
 @router.get("/requirements", response_model=List[schemas.DailyRequirement])
 def read_requirements(db: Session = Depends(get_db)):
@@ -49,8 +47,7 @@ def create_or_update_requirement(req: schemas.DailyRequirementCreate, db: Sessio
     else:
         return crud_shift.create_requirement(db, req)
 
-
-# --- Shift Generation ---
+# Shift Generation
 
 @router.post("/generate-shift")
 def generate_shift(req: schemas.GenerateRequest, db: Session = Depends(get_db)):
