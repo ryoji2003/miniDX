@@ -8,6 +8,7 @@ from backend.core.logging import setup_logging, get_logger
 from backend.models.models import Base
 from backend.core.database import engine
 from backend.api.endpoints import staffs, tasks, shifts, requests
+import os
 
 setup_logging()
 logger = get_logger(__name__)
@@ -35,6 +36,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+if not os.path.exists("static"):
+    os.makedirs("static")
+
 
 # staticディレクトリ内のファイルを /static というURLで公開する設定
 app.mount("/static", StaticFiles(directory="static"), name="static")
