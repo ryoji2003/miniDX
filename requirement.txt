@@ -4,3 +4,6 @@ sqlalchemy
 ortools
 openpyxl
 pydantic
+pydantic-settings
+aiofiles
+python-multipart
