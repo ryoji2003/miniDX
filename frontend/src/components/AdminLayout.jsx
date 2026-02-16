@@ -1,7 +1,7 @@
 // src/components/AdminLayout.jsx
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Users, Calendar as CalendarIcon, LayoutDashboard, UserX, ClipboardList, CalendarDays, CalendarPlus } from 'lucide-react';
+import { Users, Calendar as CalendarIcon, LayoutDashboard, UserX, ClipboardList, CalendarDays, CalendarPlus, Home } from 'lucide-react';
 import { Button, Card } from './ui/Layouts';
 
 export default function AdminLayout({ children }) {
@@ -71,14 +71,13 @@ export default function AdminLayout({ children }) {
           </Link>
 
           <div className="pt-4 mt-4 border-t">
-            <p className="text-xs text-gray-400 mb-2 px-2">スタッフ向け</p>
-            <Link to="/staff/request-day-off">
+            <Link to="/">
               <Button
-                variant={isActive('/staff/request-day-off') ? "default" : "ghost"}
-                className={`w-full justify-start ${isActive('/staff/request-day-off') ? "bg-primary/10 text-primary hover:bg-primary/20" : "text-gray-500"}`}
+                variant="ghost"
+                className="w-full justify-start text-gray-500"
               >
-                <CalendarPlus className="mr-2 h-4 w-4" />
-                休暇申請
+                <Home className="mr-2 h-4 w-4" />
+                トップページ
               </Button>
             </Link>
           </div>

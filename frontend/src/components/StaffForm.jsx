@@ -40,7 +40,8 @@ export default function StaffForm({ staff, onSave, onClose }) {
     if (!formData.name.trim()) {
       newErrors.name = '名前を入力してください';
     }
-    if (formData.work_limit < 1 || formData.work_limit > 200) {
+    const workLimit = formData.work_limit === '' ? 0 : Number(formData.work_limit);
+    if (isNaN(workLimit) || workLimit < 1 || workLimit > 200) {
       newErrors.work_limit = '1〜200の範囲で入力してください';
     }
     setErrors(newErrors);
@@ -50,7 +51,10 @@ export default function StaffForm({ staff, onSave, onClose }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (validate()) {
-      onSave(formData);
+      onSave({
+        ...formData,
+        work_limit: formData.work_limit === '' ? 20 : Number(formData.work_limit),
+      });
     }
   };
 
@@ -104,7 +108,12 @@ export default function StaffForm({ staff, onSave, onClose }) {
             <input
               type="number"
               value={formData.work_limit}
-              onChange={(e) => handleChange('work_limit', parseInt(e.target.value) || 0)}
+              onChange={(e) => handleChange('work_limit', e.target.value === '' ? '' : parseInt(e.target.value))}
+              onBlur={(e) => {
+                if (e.target.value === '' || isNaN(parseInt(e.target.value))) {
+                  handleChange('work_limit', 20);
+                }
+              }}
               className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 ${
                 errors.work_limit ? 'border-red-500' : 'border-gray-300'
               }`}

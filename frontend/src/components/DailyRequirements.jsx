@@ -70,10 +70,10 @@ export default function DailyRequirements({ selectedMonth }) {
     }
   };
 
-  const handleRequirementChange = (taskId, count) => {
+  const handleRequirementChange = (taskId, value) => {
     setTaskRequirements((prev) => ({
       ...prev,
-      [taskId]: parseInt(count) || 0,
+      [taskId]: value === '' ? '' : parseInt(value),
     }));
   };
 
@@ -88,7 +88,7 @@ export default function DailyRequirements({ selectedMonth }) {
         createOrUpdateRequirement({
           date: selectedDate,
           task_id: parseInt(taskId),
-          count: count,
+          count: count === '' ? 0 : parseInt(count) || 0,
         })
       );
 
@@ -176,8 +176,13 @@ export default function DailyRequirements({ selectedMonth }) {
                     type="number"
                     min="0"
                     max="20"
-                    value={taskRequirements[task.id] || 0}
+                    value={taskRequirements[task.id] ?? ''}
                     onChange={(e) => handleRequirementChange(task.id, e.target.value)}
+                    onBlur={(e) => {
+                      if (e.target.value === '' || isNaN(parseInt(e.target.value))) {
+                        handleRequirementChange(task.id, '0');
+                      }
+                    }}
                     className="w-20 px-3 py-2 border border-gray-300 rounded-md text-center focus:outline-none focus:ring-2 focus:ring-primary/50"
                   />
                   <span className="text-sm text-gray-500">名</span>

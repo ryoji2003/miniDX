@@ -103,7 +103,8 @@ export default function ManageRequestDayOffPage() {
       showSuccess('申請を承認しました');
       await Promise.all([fetchRequests(), fetchCalendarData()]);
     } catch (err) {
-      setError(err.message || '承認に失敗しました');
+      console.error('Approve error:', err);
+      setError(`承認に失敗しました: ${err.message || '不明なエラー'}`);
     } finally {
       setActionLoading(false);
     }
@@ -119,7 +120,8 @@ export default function ManageRequestDayOffPage() {
       showSuccess('申請を却下しました');
       await Promise.all([fetchRequests(), fetchCalendarData()]);
     } catch (err) {
-      setError(err.message || '却下に失敗しました');
+      console.error('Reject error:', err);
+      setError(`却下に失敗しました: ${err.message || '不明なエラー'}`);
     } finally {
       setActionLoading(false);
     }
@@ -135,7 +137,8 @@ export default function ManageRequestDayOffPage() {
       showSuccess(`${result.approved_count}件の申請を承認しました`);
       await Promise.all([fetchRequests(), fetchCalendarData()]);
     } catch (err) {
-      setError(err.message || '一括承認に失敗しました');
+      console.error('Bulk approve error:', err);
+      setError(`一括承認に失敗しました: ${err.message || '不明なエラー'}`);
     } finally {
       setActionLoading(false);
     }

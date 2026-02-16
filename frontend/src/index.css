@@ -2,13 +2,34 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ベースフォントサイズの拡大（視認性向上） */
+html {
+  font-size: 20px;
+}
+
+body {
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+/* フォーム要素のフォントサイズ */
+input, select, textarea, button {
+  font-size: inherit;
+}
+
+/* テーブルの視認性向上 */
+th, td {
+  font-size: 0.95rem;
+}
+
 /* カレンダーのスタイル調整 */
 .fc {
   border: none !important;
   font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.95rem;
 }
 .fc-toolbar-title {
-  font-size: 1.25rem !important;
+  font-size: 1.35rem !important;
   font-weight: 700 !important;
   color: #1F2937;
 }
@@ -16,6 +37,7 @@
   background-color: #F9FAFB;
   padding: 12px 0 !important;
   font-weight: 600;
+  font-size: 0.95rem;
   color: #4B5563;
   border: none !important;
   border-bottom: 1px solid #E5E7EB !important;
@@ -23,7 +45,14 @@
 .fc-daygrid-day {
   border: 1px solid #F3F4F6 !important;
 }
+.fc-daygrid-day-number {
+  font-size: 0.95rem;
+}
+.fc-event {
+  font-size: 0.85rem !important;
+}
 .fc-button-primary {
   background-color: #0F766E !important;
   border-color: #0F766E !important;
+  font-size: 0.9rem !important;
 }

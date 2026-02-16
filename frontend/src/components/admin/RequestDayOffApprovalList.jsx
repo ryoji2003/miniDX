@@ -186,22 +186,34 @@ export default function RequestDayOffApprovalList({
 
   // Handle approve
   const handleApprove = async (requestId) => {
-    await onApprove(requestId);
-    setSelectedIds(prev => prev.filter(id => id !== requestId));
+    try {
+      await onApprove(requestId);
+      setSelectedIds(prev => prev.filter(id => id !== requestId));
+    } catch (err) {
+      console.error('Approve failed:', err);
+    }
   };
 
   // Handle reject
   const handleReject = async (requestId, reason) => {
-    await onReject(requestId, reason);
-    setRejectingRequest(null);
-    setSelectedIds(prev => prev.filter(id => id !== requestId));
+    try {
+      await onReject(requestId, reason);
+      setRejectingRequest(null);
+      setSelectedIds(prev => prev.filter(id => id !== requestId));
+    } catch (err) {
+      console.error('Reject failed:', err);
+    }
   };
 
   // Handle bulk approve
   const handleBulkApprove = async () => {
     if (selectedIds.length === 0) return;
-    await onBulkApprove(selectedIds);
-    setSelectedIds([]);
+    try {
+      await onBulkApprove(selectedIds);
+      setSelectedIds([]);
+    } catch (err) {
+      console.error('Bulk approve failed:', err);
+    }
   };
 
   return (

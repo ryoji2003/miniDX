@@ -260,21 +260,28 @@ def reject_day_off_request(
 
 @router.put("/admin/requested-days-off/bulk-approve")
 def bulk_approve_day_off_requests(
-    request_ids: List[int],
-    approval: schemas.RequestedDayOffApprove,
+    request_ids: List[int] = Query(..., description="List of request IDs to approve"),
+    approval: Optional[schemas.RequestedDayOffApprove] = None,
     db: Session = Depends(get_db),
 ):
     """Approve multiple day-off requests at once"""
+    approved_by = approval.approved_by if approval else "管理者"
     approved_count = 0
+    errors = []
 
     for request_id in request_ids:
         db_req = crud_request.get_request_by_id(db, request_id)
-        if db_req and db_req.status == "pending":
-            db_req.status = "approved"
-            db_req.approved_at = datetime.utcnow()
-            db_req.approved_by = approval.approved_by
-            db_req.updated_at = datetime.utcnow()
-            approved_count += 1
+        if not db_req:
+            errors.append(f"Request {request_id} not found")
+            continue
+        if db_req.status != "pending":
+            errors.append(f"Request {request_id} is not pending")
+            continue
+        db_req.status = "approved"
+        db_req.approved_at = datetime.utcnow()
+        db_req.approved_by = approved_by
+        db_req.updated_at = datetime.utcnow()
+        approved_count += 1
 
     db.commit()
     return {"message": f"Approved {approved_count} requests", "approved_count": approved_count}

@@ -1,6 +1,7 @@
 // src/App.jsx
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import TopPage from './pages/TopPage';
 import AdminDashboard from './pages/AdminDashboard';
 import StaffManagement from './pages/StaffManagement';
 import ConstraintPage from './pages/ConstraintPage';
@@ -12,6 +13,9 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
+        {/* Top page - role selection */}
+        <Route path="/" element={<TopPage />} />
+
         {/* Admin routes */}
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/admin/staff" element={<StaffManagement />} />
@@ -21,9 +25,6 @@ function App() {
 
         {/* Staff routes */}
         <Route path="/staff/request-day-off" element={<RequestDayOffPage />} />
-
-        {/* Default redirect */}
-        <Route path="/" element={<Navigate to="/admin" replace />} />
       </Routes>
     </BrowserRouter>
   );
