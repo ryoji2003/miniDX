@@ -20,6 +20,9 @@ class ShiftConstraints:
         self._c5_training_exclusive()
         self._c6_drivers_limit()
         self._c7_facility_holidays(holidays or [])
+        self._c8_leader_selection()
+        self._c9_vehicle_license_requirement()
+        self._c10_no_driving_for_part_timers()
 
     def add_soft_constraints(self):
         """努力目標（できれば満たしたいルール）"""
@@ -122,6 +125,46 @@ class ShiftConstraints:
                 for t in self.tasks:
                     if (s.id, d, t.id) in self.shifts:
                         self.model.Add(self.shifts[(s.id, d, t.id)] == 0)
+
+    def _c8_leader_selection(self):
+        """C8: リーダー・サブリーダー業務は看護師または非訓練限定スタッフのみ"""
+        leader_tasks = [t for t in self.tasks if "リーダー" in t.name or "サブリーダー" in t.name]
+        # 看護師でなく、かつ訓練限定のスタッフは割り当て不可
+        forbidden_staffs = [s for s in self.staffs if not s.is_nurse and s.can_only_train]
+
+        for task in leader_tasks:
+            for staff in forbidden_staffs:
+                for day in self.days:
+                    self.model.Add(self.shifts[(staff.id, day, task.id)] == 0)
+
+    def _c9_vehicle_license_requirement(self):
+        """C9: 車種に応じた運転制約"""
+        for task in self.tasks:
+            if "ワゴン" in task.name:
+                # ワゴン可（license_type == 2）のみ許可
+                forbidden = [s for s in self.staffs if s.license_type != 2]
+            elif "普通車" in task.name:
+                # 普通車以上（license_type >= 1）のみ許可
+                forbidden = [s for s in self.staffs if s.license_type < 1]
+            elif "運転" in task.name:
+                # 汎用運転（license_type >= 1）のみ許可
+                forbidden = [s for s in self.staffs if s.license_type < 1]
+            else:
+                continue
+
+            for staff in forbidden:
+                for day in self.days:
+                    self.model.Add(self.shifts[(staff.id, day, task.id)] == 0)
+
+    def _c10_no_driving_for_part_timers(self):
+        """C10: パートスタッフは運転・送迎業務に割り当てない"""
+        driving_tasks = [t for t in self.tasks if "運転" in t.name or "送迎" in t.name]
+        part_time_staffs = [s for s in self.staffs if s.is_part_time]
+
+        for task in driving_tasks:
+            for staff in part_time_staffs:
+                for day in self.days:
+                    self.model.Add(self.shifts[(staff.id, day, task.id)] == 0)
 
     def _s1_work_limit(self):
         """S1: 勤務日数上限"""
