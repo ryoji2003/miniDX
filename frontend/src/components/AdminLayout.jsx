@@ -1,7 +1,7 @@
 // src/components/AdminLayout.jsx
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Users, Calendar as CalendarIcon, LayoutDashboard, UserX, ClipboardList, CalendarDays, CalendarPlus, Home } from 'lucide-react';
+import { Users, Calendar as CalendarIcon, LayoutDashboard, ClipboardList, CalendarDays, CalendarPlus, Home } from 'lucide-react';
 import { Button, Card } from './ui/Layouts';
 
 export default function AdminLayout({ children }) {
@@ -37,16 +37,6 @@ export default function AdminLayout({ children }) {
             >
               <Users className="mr-2 h-4 w-4" />
               スタッフ管理
-            </Button>
-          </Link>
-
-          <Link to="/admin/constraints">
-            <Button
-              variant={isActive('/admin/constraints') ? "default" : "ghost"}
-              className={`w-full justify-start ${isActive('/admin/constraints') ? "bg-primary/10 text-primary hover:bg-primary/20" : "text-gray-500"}`}
-            >
-              <UserX className="mr-2 h-4 w-4" />
-              希望休・制約条件
             </Button>
           </Link>
 

@@ -4,7 +4,6 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import TopPage from './pages/TopPage';
 import AdminDashboard from './pages/AdminDashboard';
 import StaffManagement from './pages/StaffManagement';
-import ConstraintPage from './pages/ConstraintPage';
 import RequirementsPage from './pages/RequirementsPage';
 import ManageRequestDayOffPage from './pages/admin/ManageRequestDayOffPage';
 import RequestDayOffPage from './pages/staff/RequestDayOffPage';
@@ -19,7 +18,6 @@ function App() {
         {/* Admin routes */}
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/admin/staff" element={<StaffManagement />} />
-        <Route path="/admin/constraints" element={<ConstraintPage />} />
         <Route path="/admin/requirements" element={<RequirementsPage />} />
         <Route path="/admin/day-off-requests" element={<ManageRequestDayOffPage />} />
 
