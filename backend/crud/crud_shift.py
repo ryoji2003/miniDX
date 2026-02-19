@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from backend.models.models import (
-    Staff, Task, AbsenceRequest, DailyRequirement,
+    Staff, Task, AbsenceRequest, DailyRequirement, RequestedDayOff,
 )
 from backend.schemas.schemas import AbsenceRequestCreate, DailyRequirementCreate
 
@@ -69,6 +69,13 @@ def get_all_shift_data(db: Session):
     """Fetch all data needed for shift generation."""
     staffs = db.query(Staff).all()
     tasks = db.query(Task).all()
-    absences = db.query(AbsenceRequest).all()
+    approved_requests = db.query(RequestedDayOff).filter(RequestedDayOff.status == "approved").all()
+
+    class MockAbsence:
+        def __init__(self, staff_id, date_str):
+            self.staff_id = staff_id
+            self.date = date_str
+
+    absences = [MockAbsence(r.staff_id, r.request_date.strftime("%Y-%m-%d")) for r in approved_requests]
     requirements = db.query(DailyRequirement).all()
     return staffs, tasks, absences, requirements
