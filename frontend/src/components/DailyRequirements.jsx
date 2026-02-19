@@ -5,11 +5,17 @@ import { getTasks } from '../api/task';
 import { getRequirements, createOrUpdateRequirement } from '../api/shift';
 import { ClipboardList, Save, Loader2, Info } from 'lucide-react';
 
-// Default requirements based on spec
-const DEFAULT_REQUIREMENTS = {
-  nursing: { min: 1, label: '看護' },
-  driving: { min: 6, label: '運転（送迎）' },
-  bathing: { min: 6, label: '入浴介助' },
+// デフォルト要件の人数設定
+const DEFAULT_REQUIREMENTS_MAP = {
+  '相談': 1,
+  '看護師': 2,
+  '訓練': 1,
+  '看護': 1,
+  '特浴': 1,
+  '風呂': 5,
+  'リーダー': 1,
+  'サブリーダー': 1,
+  '運転手': 6,
 };
 
 export default function DailyRequirements({ selectedMonth }) {
@@ -27,12 +33,12 @@ export default function DailyRequirements({ selectedMonth }) {
   }, []);
 
   useEffect(() => {
-    // Set default date to first day of selected month
+    // デフォルトの日付を、選択された月の最初の日（1日）に設定
     if (selectedMonth) {
       const [year, month] = selectedMonth.split('-');
-      setSelectedDate(`${year}-${month}-01`);
+      handleDateChange(`${year}-${month}-01`);
     }
-  }, [selectedMonth]);
+  }, [selectedMonth, tasks]); // tasksのロード完了後にも実行されるよう追加
 
   const fetchData = async () => {
     try {
@@ -43,7 +49,7 @@ export default function DailyRequirements({ selectedMonth }) {
       ]);
       setTasks(taskData);
 
-      // Group requirements by date
+      // 日付ごとに要件をグループ化
       const grouped = reqData.reduce((acc, req) => {
         if (!acc[req.date]) {
           acc[req.date] = {};
@@ -61,12 +67,18 @@ export default function DailyRequirements({ selectedMonth }) {
 
   const handleDateChange = (date) => {
     setSelectedDate(date);
-    // Load existing requirements for this date
+    
     if (requirements[date]) {
+      // すでにDBに設定がある場合はそれを表示
       setTaskRequirements(requirements[date]);
     } else {
-      // Set defaults
-      setTaskRequirements({});
+      // 設定がない場合はタスク名からキーワードを探してデフォルト値をセット
+      const newDefaults = {};
+      tasks.forEach(task => {
+        const matchKey = Object.keys(DEFAULT_REQUIREMENTS_MAP).find(key => task.name.includes(key));
+        newDefaults[task.id] = matchKey ? DEFAULT_REQUIREMENTS_MAP[matchKey] : 0;
+      });
+      setTaskRequirements(newDefaults);
     }
   };
 
@@ -77,13 +89,12 @@ export default function DailyRequirements({ selectedMonth }) {
     }));
   };
 
+  // 【この日のみ保存】
   const handleSave = async () => {
     if (!selectedDate) return;
 
     try {
       setSaving(true);
-
-      // Save each task requirement
       const promises = Object.entries(taskRequirements).map(([taskId, count]) =>
         createOrUpdateRequirement({
           date: selectedDate,
@@ -93,10 +104,50 @@ export default function DailyRequirements({ selectedMonth }) {
       );
 
       await Promise.all(promises);
-      fetchData();
+      await fetchData();
       alert('保存しました');
     } catch (err) {
       alert('保存に失敗しました: ' + err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // 【一括保存】その月の全日程に適用
+  const handleBulkSave = async () => {
+    if (!selectedDate || tasks.length === 0) return;
+    
+    const [year, month] = selectedDate.split('-').map(Number);
+    const lastDay = new Date(year, month, 0).getDate();
+    
+    if (!window.confirm(`${month}月の全日程（1日〜${lastDay}日）に現在の設定を適用しますか？`)) return;
+
+    try {
+      setSaving(true);
+      
+      const datesToUpdate = [];
+      for (let d = 1; d <= lastDay; d++) {
+        datesToUpdate.push(`${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`);
+      }
+
+      const allPromises = [];
+      datesToUpdate.forEach(date => {
+        Object.entries(taskRequirements).forEach(([taskId, count]) => {
+          allPromises.push(
+            createOrUpdateRequirement({
+              date: date,
+              task_id: parseInt(taskId),
+              count: count === '' ? 0 : parseInt(count) || 0,
+            })
+          );
+        });
+      });
+
+      await Promise.all(allPromises);
+      await fetchData();
+      alert(`${month}月の全日程に適用を完了しました`);
+    } catch (err) {
+      alert('一括保存に失敗しました: ' + err.message);
     } finally {
       setSaving(false);
     }
@@ -128,20 +179,14 @@ export default function DailyRequirements({ selectedMonth }) {
         日次要件設定
       </h2>
 
-      {/* Info box */}
       <div className="flex items-start gap-2 p-3 bg-blue-50 text-blue-700 rounded-lg mb-4 text-sm">
         <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
         <div>
-          <p className="font-medium">推奨される最低人数:</p>
-          <ul className="mt-1 space-y-0.5">
-            <li>看護: 1名以上</li>
-            <li>運転（送迎）: 6名以上</li>
-            <li>入浴介助: 約6名</li>
-          </ul>
+          <p className="font-medium">設定のヒント:</p>
+          <p>日付を選択すると、基本となる人数が自動入力されます。月を通して同じ設定にする場合は「一括適用」が便利です。</p>
         </div>
       </div>
 
-      {/* Date selector */}
       <div className="mb-4">
         <label className="block text-sm font-medium text-gray-700 mb-1">
           日付を選択
@@ -156,17 +201,16 @@ export default function DailyRequirements({ selectedMonth }) {
 
       {selectedDate && (
         <>
-          <p className="text-sm text-gray-600 mb-3">
+          <p className="text-sm text-gray-600 mb-3 font-medium">
             {formatDate(selectedDate)} の要件:
           </p>
 
-          {/* Task requirements */}
           {tasks.length === 0 ? (
             <p className="text-gray-500 text-center py-4">
-              タスクが登録されていません。先にタスクを登録してください。
+              タスクが登録されていません
             </p>
           ) : (
-            <div className="space-y-3 mb-4">
+            <div className="space-y-3 mb-6">
               {tasks.map((task) => (
                 <div key={task.id} className="flex items-center gap-3">
                   <label className="flex-1 text-sm text-gray-700">
@@ -178,40 +222,41 @@ export default function DailyRequirements({ selectedMonth }) {
                     max="20"
                     value={taskRequirements[task.id] ?? ''}
                     onChange={(e) => handleRequirementChange(task.id, e.target.value)}
-                    onBlur={(e) => {
-                      if (e.target.value === '' || isNaN(parseInt(e.target.value))) {
-                        handleRequirementChange(task.id, '0');
-                      }
-                    }}
                     className="w-20 px-3 py-2 border border-gray-300 rounded-md text-center focus:outline-none focus:ring-2 focus:ring-primary/50"
                   />
-                  <span className="text-sm text-gray-500">名</span>
+                  <span className="text-sm text-gray-500 w-6">名</span>
                 </div>
               ))}
             </div>
           )}
 
-          {/* Save button */}
-          <Button
-            onClick={handleSave}
-            disabled={saving || tasks.length === 0}
-            className="w-full"
-          >
-            {saving ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            ) : (
-              <Save className="w-4 h-4 mr-2" />
-            )}
-            保存
-          </Button>
+          <div className="flex flex-col gap-3">
+            <Button
+              onClick={handleSave}
+              disabled={saving || tasks.length === 0}
+              className="w-full"
+            >
+              {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+              この日のみ保存
+            </Button>
+            
+            <Button
+              onClick={handleBulkSave}
+              disabled={saving || tasks.length === 0}
+              variant="ghost" 
+              className="w-full border border-primary text-primary hover:bg-primary/10"
+            >
+              {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ClipboardList className="w-4 h-4 mr-2" />}
+              この月の全日に一括適用
+            </Button>
+          </div>
         </>
       )}
 
-      {/* Existing requirements summary */}
       {Object.keys(requirements).length > 0 && (
         <div className="mt-6 pt-4 border-t">
           <h3 className="text-sm font-medium text-gray-700 mb-2">
-            設定済みの日:
+            設定済みの日を確認:
           </h3>
           <div className="flex flex-wrap gap-2">
             {Object.keys(requirements)
