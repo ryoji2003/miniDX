@@ -70,8 +70,20 @@ def test_real_data_scenario():
         for d in days:
             absences.append(MockAbsence(s_id, f"2025-11-{d:02d}"))
 
-    # 5. ソルバーの実行（11月のシフト生成）
-    excel_path, shift_data = generate_shift_excel(staffs, tasks, reqs, absences, 2025, 11)
+    # 5. 施設休日（日曜日）の設定
+    class MockHoliday:
+        def __init__(self, date_str):
+            self.date = date_str
+
+    import datetime
+    holidays = []
+    for day in range(1, 31):
+        dt = datetime.date(2025, 11, day)
+        if dt.weekday() == 6:  # 日曜日
+            holidays.append(MockHoliday(f"2025-11-{day:02d}"))
+
+    # 6. ソルバーの実行（11月のシフト生成）
+    excel_path, shift_data = generate_shift_excel(staffs, tasks, reqs, absences, 2025, 11, holidays)
 
     # 6. 検証（エラーにならずにシフトが生成されているか）
     assert excel_path is not None, "シフトが生成できませんでした。制約が厳しすぎる（人が足りないなど）可能性があります。"

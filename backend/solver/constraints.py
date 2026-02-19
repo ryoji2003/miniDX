@@ -14,11 +14,11 @@ class ShiftConstraints:
     def add_hard_constraints(self, requirements, absences, holidays=None):
         """すべてのハード制約（必須ルール）を適用"""
         self._c1_one_task_per_staff()
-        self._c2_daily_requirements(requirements)
+        self._c2_daily_requirements(requirements, holidays or [])
         self._c3_absence_requests(absences)
         self._c4_nurse_exclusive()
         self._c5_training_exclusive()
-        self._c6_drivers_limit()
+        self._c6_drivers_limit(holidays or [])
         self._c7_facility_holidays(holidays or [])
         self._c8_leader_selection()
         self._c9_vehicle_license_requirement()
@@ -34,8 +34,17 @@ class ShiftConstraints:
             for d in self.days:
                 self.model.Add(sum(self.shifts[(s.id, d, t.id)] for t in self.tasks) <= 1)
 
-    def _c2_daily_requirements(self, requirements):
-        """C2: 日ごとの必要人数を満たす"""
+    def _c2_daily_requirements(self, requirements, holidays=None):
+        """C2: 日ごとの必要人数を満たす（施設休日はスキップ）"""
+        holiday_days = set()
+        for h in (holidays or []):
+            try:
+                h_date = datetime.datetime.strptime(h.date, "%Y-%m-%d")
+                if h_date.year == self.year and h_date.month == self.month:
+                    holiday_days.add(h_date.day)
+            except ValueError:
+                continue
+
         req_map = {}
         for r in requirements:
             try:
@@ -46,6 +55,8 @@ class ShiftConstraints:
                 continue
 
         for d in self.days:
+            if d in holiday_days:
+                continue  # 施設休日は要件チェックをスキップ
             for t in self.tasks:
                 if (d, t.id) in req_map:
                     count = req_map[(d, t.id)]
@@ -93,20 +104,31 @@ class ShiftConstraints:
                 for day in self.days:
                     self.model.Add(self.shifts[(staff.id, day, task.id)] == 0)
 
-    def _c6_drivers_limit(self):
-        """C6: 運転できる人数を確保"""
+    def _c6_drivers_limit(self, holidays=None):
+        """C6: 運転できる人数を確保（施設休日はスキップ）"""
+        holiday_days = set()
+        for h in (holidays or []):
+            try:
+                h_date = datetime.datetime.strptime(h.date, "%Y-%m-%d")
+                if h_date.year == self.year and h_date.month == self.month:
+                    holiday_days.add(h_date.day)
+            except ValueError:
+                continue
+
         # 運転可能かつ常勤のスタッフ
         drivers = [s for s in self.staffs if s.license_type >= 1 and not s.is_part_time]
-        
+
         # スタッフが十分いる場合のみ制約発動
         if len(drivers) >= DRIVER_MIN_COUNT:
             for d in self.days:
+                if d in holiday_days:
+                    continue  # 施設休日はスキップ
                 # その日働いているドライバーの数
                 working_vars = []
                 for s in drivers:
                     task_vars = [self.shifts[(s.id, d, t.id)] for t in self.tasks]
                     working_vars.append(sum(task_vars))
-                
+
                 self.model.Add(sum(working_vars) >= DRIVER_MIN_COUNT)
 
     def _c7_facility_holidays(self, holidays):
@@ -127,10 +149,10 @@ class ShiftConstraints:
                         self.model.Add(self.shifts[(s.id, d, t.id)] == 0)
 
     def _c8_leader_selection(self):
-        """C8: リーダー・サブリーダー業務は看護師または非訓練限定スタッフのみ"""
+        """C8: リーダー・サブリーダーは相談・看護・介護職（常勤かつ訓練限定でない）のみ"""
         leader_tasks = [t for t in self.tasks if "リーダー" in t.name or "サブリーダー" in t.name]
-        # 看護師でなく、かつ訓練限定のスタッフは割り当て不可
-        forbidden_staffs = [s for s in self.staffs if not s.is_nurse and s.can_only_train]
+        # パートまたは訓練限定のスタッフは割り当て不可
+        forbidden_staffs = [s for s in self.staffs if s.is_part_time or s.can_only_train]
 
         for task in leader_tasks:
             for staff in forbidden_staffs:
