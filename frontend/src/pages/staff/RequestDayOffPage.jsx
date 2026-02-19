@@ -1,19 +1,21 @@
 // src/pages/staff/RequestDayOffPage.jsx
 import React from 'react';
-import { Link } from 'react-router-dom';
-import { Calendar, Home, RefreshCw, User } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Calendar, Home, RefreshCw, User, LogOut } from 'lucide-react';
 import { Button, Card } from '../../components/ui/Layouts';
 import RequestDayOffForm from '../../components/staff/RequestDayOffForm';
 import MyRequestedDaysOffList from '../../components/staff/MyRequestedDaysOffList';
 import StaffDayOffCalendar from '../../components/staff/StaffDayOffCalendar';
 import useDayOffRequests from '../../hooks/useDayOffRequests';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function RequestDayOffPage() {
+  const navigate = useNavigate();
+  const { staffUser, staffLogout } = useAuth();
+  const staffId = staffUser?.staff_id;
+  const staffName = staffUser?.staff_name;
+
   const {
-    staffList,
-    selectedStaffId,
-    setSelectedStaffId,
-    selectedStaff,
     myRequests,
     calendarData,
     loading,
@@ -25,7 +27,12 @@ export default function RequestDayOffPage() {
     handleDelete,
     handleMonthChange,
     handleRefresh,
-  } = useDayOffRequests();
+  } = useDayOffRequests(staffId);
+
+  const handleLogout = () => {
+    staffLogout();
+    navigate('/staff/login');
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -47,20 +54,10 @@ export default function RequestDayOffPage() {
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Staff selector */}
+            {/* ログイン中のスタッフ名を表示 */}
             <div className="flex items-center gap-2 bg-gray-100 rounded-lg px-3 py-2">
               <User className="h-4 w-4 text-gray-500" />
-              <select
-                value={selectedStaffId || ''}
-                onChange={(e) => setSelectedStaffId(Number(e.target.value))}
-                className="bg-transparent border-none outline-none text-sm font-medium text-gray-700 cursor-pointer"
-              >
-                {staffList.map(staff => (
-                  <option key={staff.id} value={staff.id}>
-                    {staff.name}
-                  </option>
-                ))}
-              </select>
+              <span className="text-sm font-medium text-gray-700">{staffName}</span>
             </div>
 
             <Button
@@ -68,8 +65,18 @@ export default function RequestDayOffPage() {
               className="p-2"
               onClick={handleRefresh}
               disabled={loading}
+              title="更新"
             >
               <RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
+            </Button>
+
+            <Button
+              variant="ghost"
+              className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50"
+              onClick={handleLogout}
+              title="ログアウト"
+            >
+              <LogOut className="h-5 w-5" />
             </Button>
           </div>
         </div>
@@ -91,25 +98,18 @@ export default function RequestDayOffPage() {
         )}
 
         {/* Loading state */}
-        {loading && staffList.length === 0 ? (
+        {loading && myRequests.length === 0 ? (
           <Card className="p-12 bg-white border-none shadow-sm">
             <div className="flex flex-col items-center justify-center">
               <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mb-4" />
               <p className="text-gray-500">読み込み中...</p>
             </div>
           </Card>
-        ) : !selectedStaffId ? (
-          <Card className="p-12 bg-white border-none shadow-sm">
-            <div className="text-center text-gray-500">
-              <User className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-              <p>スタッフを選択してください</p>
-            </div>
-          </Card>
         ) : (
           <>
             {/* Day-off request form */}
             <RequestDayOffForm
-              staffId={selectedStaffId}
+              staffId={staffId}
               existingRequests={myRequests}
               onSubmit={handleSubmit}
               loading={submitting}
@@ -125,7 +125,7 @@ export default function RequestDayOffPage() {
 
             {/* Other staff calendar */}
             <StaffDayOffCalendar
-              calendarData={calendarData.filter(item => item.staff_id !== selectedStaffId)}
+              calendarData={calendarData.filter(item => item.staff_id !== staffId)}
               onMonthChange={handleMonthChange}
             />
           </>

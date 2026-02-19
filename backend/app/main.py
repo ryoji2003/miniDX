@@ -2,12 +2,13 @@ from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from sqlalchemy import text, inspect as sa_inspect
 
 from backend.core.config import settings
 from backend.core.logging import setup_logging, get_logger
 from backend.models.models import Base
 from backend.core.database import engine
-from backend.api.endpoints import staffs, tasks, shifts, requests
+from backend.api.endpoints import staffs, tasks, shifts, requests, auth
 import os
 
 setup_logging()
@@ -15,6 +16,19 @@ logger = get_logger(__name__)
 
 # データベースのテーブルを自動作成 (初回起動時)
 Base.metadata.create_all(bind=engine)
+
+# staffsテーブルに認証用カラムが存在しない場合は追加するマイグレーション
+with engine.connect() as conn:
+    inspector = sa_inspect(engine)
+    existing_columns = [col["name"] for col in inspector.get_columns("staffs")]
+    if "hashed_password" not in existing_columns:
+        conn.execute(text("ALTER TABLE staffs ADD COLUMN hashed_password VARCHAR"))
+        conn.commit()
+        logger.info("staffs.hashed_password カラムを追加しました")
+    if "is_admin" not in existing_columns:
+        conn.execute(text("ALTER TABLE staffs ADD COLUMN is_admin BOOLEAN DEFAULT FALSE"))
+        conn.commit()
+        logger.info("staffs.is_admin カラムを追加しました")
 
 app = FastAPI()
 
@@ -45,6 +59,7 @@ if not os.path.exists("static"):
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # ルーターを登録
+app.include_router(auth.router)
 app.include_router(staffs.router)
 app.include_router(tasks.router)
 app.include_router(shifts.router)

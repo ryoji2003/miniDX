@@ -1,6 +1,5 @@
 // src/hooks/useDayOffRequests.js
 import { useState, useEffect, useCallback } from 'react';
-import { getStaffs } from '../api/staff';
 import {
   getStaffDayOffRequests,
   createBulkDayOffRequests,
@@ -9,11 +8,7 @@ import {
   getAllStaffDayOffCalendar,
 } from '../api/request';
 
-export default function useDayOffRequests() {
-  // Staff selection
-  const [staffList, setStaffList] = useState([]);
-  const [selectedStaffId, setSelectedStaffId] = useState(null);
-
+export default function useDayOffRequests(staffId) {
   // Data states
   const [myRequests, setMyRequests] = useState([]);
   const [calendarData, setCalendarData] = useState([]);
@@ -29,33 +24,16 @@ export default function useDayOffRequests() {
   const [calendarYear, setCalendarYear] = useState(today.getFullYear());
   const [calendarMonth, setCalendarMonth] = useState(today.getMonth() + 1);
 
-  // Fetch staff list on mount
-  useEffect(() => {
-    const fetchStaffs = async () => {
-      try {
-        const staffs = await getStaffs();
-        setStaffList(staffs);
-        if (staffs.length > 0) {
-          setSelectedStaffId(staffs[0].id);
-        }
-      } catch (err) {
-        setError('スタッフ情報の取得に失敗しました');
-      }
-    };
-    fetchStaffs();
-  }, []);
-
-  // Fetch my requests when staff selected
+  // Fetch my requests when staffId is available
   const fetchMyRequests = useCallback(async () => {
-    if (!selectedStaffId) return;
-
+    if (!staffId) return;
     try {
-      const requests = await getStaffDayOffRequests(selectedStaffId);
+      const requests = await getStaffDayOffRequests(staffId);
       setMyRequests(requests);
     } catch (err) {
       console.error('Failed to fetch requests:', err);
     }
-  }, [selectedStaffId]);
+  }, [staffId]);
 
   // Fetch calendar data
   const fetchCalendarData = useCallback(async () => {
@@ -67,7 +45,7 @@ export default function useDayOffRequests() {
     }
   }, [calendarYear, calendarMonth]);
 
-  // Fetch data on staff/month change
+  // Fetch data on staffId/month change
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -87,9 +65,8 @@ export default function useDayOffRequests() {
   const handleSubmit = async (data) => {
     setSubmitting(true);
     setError(null);
-
     try {
-      await createBulkDayOffRequests(data);
+      await createBulkDayOffRequests({ ...data, staff_id: staffId });
       showSuccess('休暇申請を送信しました');
       await fetchMyRequests();
     } catch (err) {
@@ -103,7 +80,6 @@ export default function useDayOffRequests() {
   const handleEdit = async (requestId, data) => {
     setSubmitting(true);
     setError(null);
-
     try {
       await updateDayOffRequest(requestId, data);
       showSuccess('申請を更新しました');
@@ -119,7 +95,6 @@ export default function useDayOffRequests() {
   const handleDelete = async (requestId) => {
     setSubmitting(true);
     setError(null);
-
     try {
       await deleteDayOffRequest(requestId);
       showSuccess('申請を削除しました');
@@ -144,13 +119,7 @@ export default function useDayOffRequests() {
     setLoading(false);
   };
 
-  const selectedStaff = staffList.find(s => s.id === selectedStaffId);
-
   return {
-    staffList,
-    selectedStaffId,
-    setSelectedStaffId,
-    selectedStaff,
     myRequests,
     calendarData,
     loading,

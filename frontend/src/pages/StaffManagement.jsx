@@ -4,7 +4,8 @@ import AdminLayout from '../components/AdminLayout';
 import { Card, Button } from '../components/ui/Layouts';
 import StaffForm from '../components/StaffForm';
 import { getStaffs, createStaff, updateStaff, deleteStaff, mapStaffToFrontend } from '../api/staff';
-import { Plus, Clock, BadgeCheck, Pencil, Trash2, Loader2, AlertCircle } from 'lucide-react';
+import { resetStaffPassword } from '../api/auth';
+import { Plus, Clock, BadgeCheck, Pencil, Trash2, Loader2, AlertCircle, KeyRound } from 'lucide-react';
 
 export default function StaffManagement() {
   const [staffs, setStaffs] = useState([]);
@@ -13,6 +14,7 @@ export default function StaffManagement() {
   const [showForm, setShowForm] = useState(false);
   const [editingStaff, setEditingStaff] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [resetPasswordConfirm, setResetPasswordConfirm] = useState(null);
 
   // Fetch staff list on mount
   useEffect(() => {
@@ -68,6 +70,16 @@ export default function StaffManagement() {
       fetchStaffs();
     } catch (err) {
       alert('削除に失敗しました: ' + err.message);
+    }
+  };
+
+  const handleResetPasswordConfirm = async () => {
+    try {
+      await resetStaffPassword(resetPasswordConfirm.id);
+      setResetPasswordConfirm(null);
+      alert(`${resetPasswordConfirm.name} のパスワードをリセットしました。次回ログイン時に再設定が必要です。`);
+    } catch (err) {
+      alert('パスワードリセットに失敗しました: ' + err.message);
     }
   };
 
@@ -184,6 +196,15 @@ export default function StaffManagement() {
                         <Button
                           variant="ghost"
                           size="icon"
+                          className="h-8 w-8 text-gray-500 hover:text-amber-600 hover:bg-amber-50"
+                          onClick={() => setResetPasswordConfirm(staff)}
+                          title="パスワードを初期化"
+                        >
+                          <KeyRound className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           className="h-8 w-8 text-gray-500 hover:text-primary hover:bg-primary/10"
                           onClick={() => handleEditClick(staff)}
                         >
@@ -217,6 +238,36 @@ export default function StaffManagement() {
             setEditingStaff(null);
           }}
         />
+      )}
+
+      {/* Password Reset Confirmation Modal */}
+      {resetPasswordConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-sm p-6 bg-white">
+            <h3 className="text-lg font-bold text-gray-800 mb-2">パスワードの初期化</h3>
+            <p className="text-gray-600 mb-1">
+              「{resetPasswordConfirm.name}」のパスワードを初期化しますか？
+            </p>
+            <p className="text-sm text-amber-600 mb-4">
+              初期化すると、次回ログイン時にパスワードの再設定が必要になります。スタッフ情報は変更されません。
+            </p>
+            <div className="flex gap-3">
+              <Button
+                variant="ghost"
+                onClick={() => setResetPasswordConfirm(null)}
+                className="flex-1"
+              >
+                キャンセル
+              </Button>
+              <Button
+                onClick={handleResetPasswordConfirm}
+                className="flex-1 bg-amber-500 hover:bg-amber-600"
+              >
+                初期化する
+              </Button>
+            </div>
+          </Card>
+        </div>
       )}
 
       {/* Delete Confirmation Modal */}

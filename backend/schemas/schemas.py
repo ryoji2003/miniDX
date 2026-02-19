@@ -137,3 +137,27 @@ class RequestedDayOffStatistics(BaseModel):
     approved_count: int
     pending_count: int
     staff_names: List[str]
+
+
+# --- 認証 (Auth) ---
+class LoginRequest(BaseModel):
+    """スタッフログインリクエスト"""
+    name: str
+    password: Optional[str] = None
+
+
+class SetupPasswordRequest(BaseModel):
+    """初回パスワード設定リクエスト"""
+    setup_token: str
+    new_password: str
+
+
+class AdminLoginRequest(BaseModel):
+    """管理者ログインリクエスト"""
+    username: str
+    password: str
+
+
+class ResetPasswordResponse(BaseModel):
+    """パスワードリセットレスポンス"""
+    message: str

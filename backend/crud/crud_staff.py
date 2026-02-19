@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from backend.models.models import Staff
+from backend.models.models import Staff, RequestedDayOff, AbsenceRequest
 from backend.schemas.schemas import StaffCreate
 
 
@@ -39,5 +39,8 @@ def update_staff(db: Session, db_staff: Staff, staff: StaffCreate):
 
 
 def delete_staff(db: Session, db_staff: Staff):
+    # 関連する休暇申請・希望休を先に削除（staff_id NOT NULL 制約のため）
+    db.query(RequestedDayOff).filter(RequestedDayOff.staff_id == db_staff.id).delete(synchronize_session=False)
+    db.query(AbsenceRequest).filter(AbsenceRequest.staff_id == db_staff.id).delete(synchronize_session=False)
     db.delete(db_staff)
     db.commit()

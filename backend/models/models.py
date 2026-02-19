@@ -23,6 +23,10 @@ class Staff(Base):
     # 看護師資格フラグ (True:看護師, False:その他/介護士)
     is_nurse = Column(Boolean, default=False)
 
+    # 認証用カラム
+    hashed_password = Column(String, nullable=True)
+    is_admin = Column(Boolean, default=False)
+
 # --- スキル (Skill) ---
 class Skill(Base):
     __tablename__ = "skills"

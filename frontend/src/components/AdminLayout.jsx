@@ -1,11 +1,19 @@
 // src/components/AdminLayout.jsx
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Users, Calendar as CalendarIcon, LayoutDashboard, ClipboardList, CalendarDays, CalendarPlus, Home } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Users, Calendar as CalendarIcon, LayoutDashboard, ClipboardList, CalendarDays, Home, LogOut } from 'lucide-react';
 import { Button, Card } from './ui/Layouts';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function AdminLayout({ children }) {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { adminUser, adminLogout } = useAuth();
+
+  const handleLogout = () => {
+    adminLogout();
+    navigate('/admin/login');
+  };
 
   // 現在のページがアクティブかどうか判定する関数
   const isActive = (path) => location.pathname === path;
@@ -60,7 +68,7 @@ export default function AdminLayout({ children }) {
             </Button>
           </Link>
 
-          <div className="pt-4 mt-4 border-t">
+          <div className="pt-4 mt-4 border-t space-y-1">
             <Link to="/">
               <Button
                 variant="ghost"
@@ -70,6 +78,19 @@ export default function AdminLayout({ children }) {
                 トップページ
               </Button>
             </Link>
+            <Button
+              variant="ghost"
+              className="w-full justify-start text-gray-500 hover:text-red-600 hover:bg-red-50"
+              onClick={handleLogout}
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              ログアウト
+              {adminUser && (
+                <span className="ml-auto text-xs text-gray-400 truncate max-w-[80px]">
+                  {adminUser.admin_name}
+                </span>
+              )}
+            </Button>
           </div>
         </nav>
       </aside>

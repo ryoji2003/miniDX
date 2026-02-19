@@ -7,6 +7,7 @@ from collections import defaultdict
 from backend.schemas import schemas
 from backend.core.database import get_db
 from backend.crud import crud_request
+from backend.core.auth import get_current_user, get_current_admin
 
 router = APIRouter(prefix="/api", tags=["requests"])
 
@@ -16,8 +17,14 @@ router = APIRouter(prefix="/api", tags=["requests"])
 # ============================================================
 
 @router.post("/staff/requested-days-off", response_model=schemas.RequestedDayOff)
-def create_day_off_request(req: schemas.RequestedDayOffCreate, db: Session = Depends(get_db)):
+def create_day_off_request(
+    req: schemas.RequestedDayOffCreate,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
     """Submit a single day-off request"""
+    if req.staff_id != current_user.id:
+        raise HTTPException(status_code=403, detail="他のスタッフの申請は送信できません")
     staff = crud_request.get_staff_by_id(db, req.staff_id)
     if not staff:
         raise HTTPException(status_code=404, detail="Staff not found")
@@ -38,8 +45,14 @@ def create_day_off_request(req: schemas.RequestedDayOffCreate, db: Session = Dep
 
 
 @router.post("/staff/requested-days-off/bulk", response_model=List[schemas.RequestedDayOff])
-def create_bulk_day_off_requests(req: schemas.RequestedDayOffBulkCreate, db: Session = Depends(get_db)):
+def create_bulk_day_off_requests(
+    req: schemas.RequestedDayOffBulkCreate,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
     """Submit multiple day-off requests at once (for date range selection)"""
+    if req.staff_id != current_user.id:
+        raise HTTPException(status_code=403, detail="他のスタッフの申請は送信できません")
     staff = crud_request.get_staff_by_id(db, req.staff_id)
     if not staff:
         raise HTTPException(status_code=404, detail="Staff not found")
@@ -73,8 +86,11 @@ def get_staff_day_off_requests(
     year: Optional[int] = Query(None, description="Filter by year"),
     month: Optional[int] = Query(None, description="Filter by month"),
     db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
 ):
     """Get day-off requests for a specific staff member"""
+    if staff_id != current_user.id:
+        raise HTTPException(status_code=403, detail="他のスタッフの申請は閲覧できません")
     staff = crud_request.get_staff_by_id(db, staff_id)
     if not staff:
         raise HTTPException(status_code=404, detail="Staff not found")
@@ -95,6 +111,7 @@ def get_all_staff_day_off_calendar(
     year: int = Query(..., description="Year"),
     month: int = Query(..., description="Month"),
     db: Session = Depends(get_db),
+    _=Depends(get_current_user),
 ):
     """Get all approved day-off requests for calendar display (staff view - only shows approved)"""
     requests = crud_request.get_calendar_requests(db, year, month, status_filter="approved")
@@ -114,7 +131,7 @@ def get_all_staff_day_off_calendar(
 
 
 @router.get("/staff/requested-days-off/{request_id}", response_model=schemas.RequestedDayOff)
-def get_day_off_request_detail(request_id: int, db: Session = Depends(get_db)):
+def get_day_off_request_detail(request_id: int, db: Session = Depends(get_db), _=Depends(get_current_user)):
     """Get details of a specific day-off request"""
     db_req = crud_request.get_request_by_id(db, request_id)
     if not db_req:
@@ -131,6 +148,7 @@ def update_day_off_request(
     request_id: int,
     update: schemas.RequestedDayOffUpdate,
     db: Session = Depends(get_db),
+    _=Depends(get_current_user),
 ):
     """Update a pending day-off request (only pending requests can be modified)"""
     db_req = crud_request.get_request_by_id(db, request_id)
@@ -164,7 +182,7 @@ def update_day_off_request(
 
 
 @router.delete("/staff/requested-days-off/{request_id}")
-def delete_day_off_request(request_id: int, db: Session = Depends(get_db)):
+def delete_day_off_request(request_id: int, db: Session = Depends(get_db), _=Depends(get_current_user)):
     """Delete a day-off request (only pending requests can be deleted)"""
     db_req = crud_request.get_request_by_id(db, request_id)
     if not db_req:
@@ -188,6 +206,7 @@ def get_all_day_off_requests(
     year: Optional[int] = Query(None, description="Filter by year"),
     month: Optional[int] = Query(None, description="Filter by month"),
     db: Session = Depends(get_db),
+    _=Depends(get_current_admin),
 ):
     """Get all day-off requests (admin view)"""
     requests = crud_request.get_all_requests_admin(db, status=status, staff_id=staff_id, year=year, month=month)
@@ -207,6 +226,7 @@ def approve_day_off_request(
     request_id: int,
     approval: schemas.RequestedDayOffApprove,
     db: Session = Depends(get_db),
+    _=Depends(get_current_admin),
 ):
     """Approve a day-off request"""
     db_req = crud_request.get_request_by_id(db, request_id)
@@ -235,6 +255,7 @@ def reject_day_off_request(
     request_id: int,
     rejection: schemas.RequestedDayOffReject,
     db: Session = Depends(get_db),
+    _=Depends(get_current_admin),
 ):
     """Reject a day-off request"""
     db_req = crud_request.get_request_by_id(db, request_id)
@@ -263,6 +284,7 @@ def bulk_approve_day_off_requests(
     request_ids: List[int] = Query(..., description="List of request IDs to approve"),
     approval: Optional[schemas.RequestedDayOffApprove] = None,
     db: Session = Depends(get_db),
+    _=Depends(get_current_admin),
 ):
     """Approve multiple day-off requests at once"""
     approved_by = approval.approved_by if approval else "管理者"
@@ -293,6 +315,7 @@ def get_admin_day_off_calendar(
     month: int = Query(..., description="Month"),
     include_pending: bool = Query(True, description="Include pending requests"),
     db: Session = Depends(get_db),
+    _=Depends(get_current_admin),
 ):
     """Get all day-off requests for admin calendar (shows all statuses)"""
     if not include_pending:
@@ -319,6 +342,7 @@ def get_day_off_statistics(
     year: int = Query(..., description="Year"),
     month: int = Query(..., description="Month"),
     db: Session = Depends(get_db),
+    _=Depends(get_current_admin),
 ):
     """Get day-off statistics per day for the month (for admin calendar warnings)"""
     requests = crud_request.get_statistics_requests(db, year, month)

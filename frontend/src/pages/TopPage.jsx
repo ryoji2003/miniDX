@@ -18,7 +18,7 @@ export default function TopPage() {
       <div className="flex flex-col sm:flex-row gap-6 w-full max-w-2xl">
         {/* Admin card */}
         <Link
-          to="/admin"
+          to="/admin/login"
           className="flex-1 bg-white rounded-xl border-2 border-gray-200 hover:border-primary shadow-sm hover:shadow-md transition-all p-8 flex flex-col items-center text-center group"
         >
           <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
@@ -32,7 +32,7 @@ export default function TopPage() {
 
         {/* Staff card */}
         <Link
-          to="/staff/request-day-off"
+          to="/staff/login"
           className="flex-1 bg-white rounded-xl border-2 border-gray-200 hover:border-primary shadow-sm hover:shadow-md transition-all p-8 flex flex-col items-center text-center group"
         >
           <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
