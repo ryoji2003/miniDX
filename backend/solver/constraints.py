@@ -11,7 +11,7 @@ class ShiftConstraints:
         self.year = year
         self.month = month
 
-    def add_hard_constraints(self, requirements, absences):
+    def add_hard_constraints(self, requirements, absences, holidays=None):
         """すべてのハード制約（必須ルール）を適用"""
         self._c1_one_task_per_staff()
         self._c2_daily_requirements(requirements)
@@ -19,6 +19,7 @@ class ShiftConstraints:
         self._c4_nurse_exclusive()
         self._c5_training_exclusive()
         self._c6_drivers_limit()
+        self._c7_facility_holidays(holidays or [])
 
     def add_soft_constraints(self):
         """努力目標（できれば満たしたいルール）"""
@@ -104,6 +105,23 @@ class ShiftConstraints:
                     working_vars.append(sum(task_vars))
                 
                 self.model.Add(sum(working_vars) >= DRIVER_MIN_COUNT)
+
+    def _c7_facility_holidays(self, holidays):
+        """C7: 施設休日は全スタッフの全タスク割り当てを0に強制"""
+        holiday_days = []
+        for h in holidays:
+            try:
+                h_date = datetime.datetime.strptime(h.date, "%Y-%m-%d")
+                if h_date.year == self.year and h_date.month == self.month:
+                    holiday_days.append(h_date.day)
+            except ValueError:
+                continue
+
+        for d in holiday_days:
+            for s in self.staffs:
+                for t in self.tasks:
+                    if (s.id, d, t.id) in self.shifts:
+                        self.model.Add(self.shifts[(s.id, d, t.id)] == 0)
 
     def _s1_work_limit(self):
         """S1: 勤務日数上限"""

@@ -5,7 +5,7 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import AdminLayout from '../components/AdminLayout';
 import { Card, Button } from '../components/ui/Layouts';
 import { getStaffs, mapStaffToFrontend } from '../api/staff';
-import { generateShift } from '../api/shift';
+import { generateShift, getHolidays } from '../api/shift';
 import { Wand2, Download, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
 import { MOCK_SHIFTS } from '../mocks/data'; // Vercelでの公開するため
 
@@ -84,6 +84,9 @@ export default function AdminDashboard() {
   // Calendar events (from generated shifts)
   const [events, setEvents] = useState([]);
 
+  // Holiday background events
+  const [holidayDates, setHolidayDates] = useState([]);
+
   useEffect(() => {
     fetchStaffs();
   }, []);
@@ -135,8 +138,17 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleDateChange = (info) => {
-    setCurrentDate(info.view.currentStart);
+  const handleDateChange = async (info) => {
+    const newDate = info.view.currentStart;
+    setCurrentDate(newDate);
+    const y = newDate.getFullYear();
+    const m = newDate.getMonth() + 1;
+    try {
+      const data = await getHolidays(y, m);
+      setHolidayDates(data.map((h) => h.date));
+    } catch (err) {
+      console.error('Failed to fetch holidays:', err);
+    }
   };
 
   const displayMonth = `${currentDate.getFullYear()}年${currentDate.getMonth() + 1}月`;
@@ -228,7 +240,31 @@ export default function AdminDashboard() {
           <FullCalendar
             plugins={[dayGridPlugin]}
             initialView="dayGridMonth"
-            events={events}
+            events={[
+              ...events,
+              ...holidayDates.map((date) => ({
+                id: `holiday-${date}`,
+                start: date,
+                allDay: true,
+                display: 'background',
+                backgroundColor: '#e5e7eb',
+              })),
+            ]}
+            dayCellContent={(arg) => {
+              const y = arg.date.getFullYear();
+              const m = String(arg.date.getMonth() + 1).padStart(2, '0');
+              const d = String(arg.date.getDate()).padStart(2, '0');
+              const dateStr = `${y}-${m}-${d}`;
+              const isHoliday = holidayDates.includes(dateStr);
+              return (
+                <div className="fc-daygrid-day-number-wrapper">
+                  <span>{arg.dayNumberText}</span>
+                  {isHoliday && (
+                    <span className="ml-1 text-xs text-gray-400 font-normal">休館</span>
+                  )}
+                </div>
+              );
+            }}
             datesSet={handleDateChange}
             headerToolbar={{
               left: 'prev,next today',

@@ -50,6 +50,29 @@ def create_or_update_requirement(req: schemas.DailyRequirementCreate, db: Sessio
     else:
         return crud_shift.create_requirement(db, req)
 
+# Holiday (施設休日)
+
+@router.get("/holidays", response_model=List[schemas.Holiday])
+def read_holidays(year: int, month: int, db: Session = Depends(get_db)):
+    return crud_shift.get_holidays(db, year, month)
+
+
+@router.post("/holidays", response_model=schemas.Holiday)
+def create_holiday(holiday: schemas.HolidayCreate, db: Session = Depends(get_db)):
+    existing = crud_shift.get_holiday_by_date(db, holiday.date)
+    if existing:
+        return existing
+    return crud_shift.create_holiday(db, holiday)
+
+
+@router.delete("/holidays/{date}")
+def delete_holiday(date: str, db: Session = Depends(get_db)):
+    db_holiday = crud_shift.delete_holiday(db, date)
+    if not db_holiday:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"message": "Deleted successfully"}
+
+
 # Shift Generation
 
 @router.post("/generate-shift")
@@ -57,10 +80,10 @@ def generate_shift(req: schemas.GenerateRequest, db: Session = Depends(get_db)):
     """指定された年月のシフトを自動生成し、ExcelのダウンロードURLを返す"""
     logger.info("シフト生成開始: %d年%d月", req.year, req.month)
 
-    staffs, tasks, absences, requirements = crud_shift.get_all_shift_data(db)
+    staffs, tasks, absences, requirements, holidays = crud_shift.get_all_shift_data(db)
 
     excel_path, shift_data = shift_solver.generate_shift_excel(
-        staffs, tasks, requirements, absences, req.year, req.month
+        staffs, tasks, requirements, absences, req.year, req.month, holidays
     )
 
     if excel_path:

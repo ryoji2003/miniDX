@@ -3,7 +3,7 @@ from ortools.sat.python import cp_model
 from .constraints import ShiftConstraints
 from .exporter import create_excel_file, extract_shift_data
 
-def generate_shift_excel(staffs, tasks, requirements, absences, year, month):
+def generate_shift_excel(staffs, tasks, requirements, absences, year, month, holidays=None):
     model = cp_model.CpModel()
 
     if month == 12:
@@ -20,7 +20,7 @@ def generate_shift_excel(staffs, tasks, requirements, absences, year, month):
                 shifts[(s.id, d, t.id)] = model.NewBoolVar(f"shift_s{s.id}_d{d}_t{t.id}")
 
     constraints = ShiftConstraints(model, shifts, staffs, tasks, days, year, month)
-    constraints.add_hard_constraints(requirements, absences)
+    constraints.add_hard_constraints(requirements, absences, holidays or [])
     constraints.add_soft_constraints()
 
     solver = cp_model.CpSolver()

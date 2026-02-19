@@ -139,6 +139,17 @@ class RequestedDayOffStatistics(BaseModel):
     staff_names: List[str]
 
 
+# --- 施設休日 (Holiday) ---
+class HolidayCreate(BaseModel):
+    date: str  # YYYY-MM-DD形式
+    description: Optional[str] = None
+
+class Holiday(HolidayCreate):
+    id: int
+    class Config:
+        from_attributes = True
+
+
 # --- 認証 (Auth) ---
 class LoginRequest(BaseModel):
     """スタッフログインリクエスト"""

@@ -1,8 +1,8 @@
 from sqlalchemy.orm import Session
 from backend.models.models import (
-    Staff, Task, AbsenceRequest, DailyRequirement, RequestedDayOff,
+    Staff, Task, AbsenceRequest, DailyRequirement, RequestedDayOff, Holiday,
 )
-from backend.schemas.schemas import AbsenceRequestCreate, DailyRequirementCreate
+from backend.schemas.schemas import AbsenceRequestCreate, DailyRequirementCreate, HolidayCreate
 
 
 # --- AbsenceRequest ---
@@ -63,6 +63,42 @@ def update_requirement(db: Session, existing: DailyRequirement, count: int):
     return existing
 
 
+# --- Holiday (施設休日) ---
+
+def get_holidays(db: Session, year: int, month: int):
+    """指定年月の休日一覧を取得"""
+    prefix = f"{year}-{str(month).zfill(2)}-"
+    return db.query(Holiday).filter(Holiday.date.startswith(prefix)).all()
+
+
+def create_holiday(db: Session, holiday: HolidayCreate):
+    """休日を登録"""
+    db_holiday = Holiday(date=holiday.date, description=holiday.description)
+    db.add(db_holiday)
+    db.commit()
+    db.refresh(db_holiday)
+    return db_holiday
+
+
+def get_holiday_by_date(db: Session, date: str):
+    """指定日の休日レコードを取得"""
+    return db.query(Holiday).filter(Holiday.date == date).first()
+
+
+def delete_holiday(db: Session, date: str):
+    """休日を削除"""
+    db_holiday = get_holiday_by_date(db, date)
+    if db_holiday:
+        db.delete(db_holiday)
+        db.commit()
+    return db_holiday
+
+
+def is_holiday(db: Session, date: str) -> bool:
+    """指定日が休日か判定"""
+    return get_holiday_by_date(db, date) is not None
+
+
 # --- Shift generation data ---
 
 def get_all_shift_data(db: Session):
@@ -78,4 +114,5 @@ def get_all_shift_data(db: Session):
 
     absences = [MockAbsence(r.staff_id, r.request_date.strftime("%Y-%m-%d")) for r in approved_requests]
     requirements = db.query(DailyRequirement).all()
-    return staffs, tasks, absences, requirements
+    holidays = db.query(Holiday).all()
+    return staffs, tasks, absences, requirements, holidays

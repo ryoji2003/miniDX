@@ -35,6 +35,25 @@ export async function createOrUpdateRequirement(requirementData) {
   });
 }
 
+// ========== Holiday API (施設休日) ==========
+
+export async function getHolidays(year, month) {
+  return fetchAPI(`/holidays?year=${year}&month=${month}`);
+}
+
+export async function createHoliday(date, description = null) {
+  return fetchAPI('/holidays', {
+    method: 'POST',
+    body: JSON.stringify({ date, description }),
+  });
+}
+
+export async function deleteHoliday(date) {
+  return fetchAPI(`/holidays/${date}`, {
+    method: 'DELETE',
+  });
+}
+
 // ========== Shift Generation API ==========
 
 export async function generateShift(year, month) {

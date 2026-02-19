@@ -56,6 +56,14 @@ class DailyRequirement(Base):
     count = Column(Integer, default=1)
 
 
+# --- 施設休日 (Holiday) ---
+class Holiday(Base):
+    __tablename__ = "holidays"
+    id = Column(Integer, primary_key=True, index=True)
+    date = Column(String, unique=True, index=True)  # YYYY-MM-DD形式
+    description = Column(String, nullable=True)
+
+
 # --- 休暇申請 (RequestedDayOff) ---
 class RequestedDayOff(Base):
     __tablename__ = "requested_days_off"
