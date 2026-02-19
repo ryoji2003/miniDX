@@ -91,10 +91,7 @@ export default function AdminDashboard() {
   const fetchStaffs = async () => {
     try {
       setLoading(true);
-      //const data = await getStaffs(); //loacl動かす用
-      setEvents(MOCK_SHIFTS); // ダミーデータをセット for Vercel deployment
-      setLoading(false);// Vercelでの公開するため
-
+      const data = await getStaffs(); //loacl動かす用
       setStaffs(data.map(mapStaffToFrontend));
     } catch (err) {
       console.error('Failed to fetch staffs:', err);
