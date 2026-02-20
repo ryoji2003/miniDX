@@ -23,6 +23,7 @@ class ShiftConstraints:
         self._c8_leader_selection()
         self._c9_vehicle_license_requirement()
         self._c10_no_driving_for_part_timers()
+        self._c11_training_qualification()
         if additional_days is not None:
             self._c_monthly_rest_days(additional_days)
 
@@ -174,6 +175,16 @@ class ShiftConstraints:
 
         for task in driving_tasks:
             for staff in part_time_staffs:
+                for day in self.days:
+                    self.model.Add(self.shifts[(staff.id, day, task.id)] == 0)
+
+    def _c11_training_qualification(self):
+        """C11: 訓練業務は看護師（is_nurse=True）または訓練限定スタッフ（can_only_train=True）のみ"""
+        train_tasks = [t for t in self.tasks if TaskCategory.TRAINING.value in t.name]
+        unqualified_staffs = [s for s in self.staffs if not s.is_nurse and not s.can_only_train]
+
+        for task in train_tasks:
+            for staff in unqualified_staffs:
                 for day in self.days:
                     self.model.Add(self.shifts[(staff.id, day, task.id)] == 0)
 

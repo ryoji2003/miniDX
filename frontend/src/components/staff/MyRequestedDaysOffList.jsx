@@ -159,13 +159,21 @@ export default function MyRequestedDaysOffList({
   const [deletingRequest, setDeletingRequest] = useState(null);
 
   const handleSave = async (id, data) => {
-    await onEdit(id, data);
-    setEditingRequest(null);
+    try {
+      await onEdit(id, data);
+      setEditingRequest(null);
+    } catch {
+      // エラーはページ上部に表示される。モーダルは開いたまま。
+    }
   };
 
   const handleDelete = async (id) => {
-    await onDelete(id);
-    setDeletingRequest(null);
+    try {
+      await onDelete(id);
+      setDeletingRequest(null);
+    } catch {
+      // エラーはページ上部に表示される。モーダルは開いたまま。
+    }
   };
 
   // Group requests by status
@@ -219,26 +227,27 @@ export default function MyRequestedDaysOffList({
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 <StatusBadge status={request.status} />
 
                 {request.status === 'pending' && (
-                  <div className="flex gap-1">
-                    <button
-                      onClick={() => setEditingRequest(request)}
-                      className="p-2 hover:bg-white rounded-lg text-gray-500 hover:text-primary transition-colors"
-                      title="編集"
-                    >
-                      <Edit2 className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => setDeletingRequest(request)}
-                      className="p-2 hover:bg-white rounded-lg text-gray-500 hover:text-red-500 transition-colors"
-                      title="削除"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => setEditingRequest(request)}
+                    className="flex items-center gap-1 px-2 py-1 text-xs rounded-md border border-gray-200 bg-white text-gray-600 hover:text-primary hover:border-primary transition-colors"
+                  >
+                    <Edit2 className="h-3 w-3" />
+                    編集
+                  </button>
+                )}
+
+                {(request.status === 'pending' || request.status === 'rejected') && (
+                  <button
+                    onClick={() => setDeletingRequest(request)}
+                    className="flex items-center gap-1 px-2 py-1 text-xs rounded-md border border-gray-200 bg-white text-gray-600 hover:text-red-500 hover:border-red-300 transition-colors"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                    取消
+                  </button>
                 )}
               </div>
             </div>

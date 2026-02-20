@@ -86,6 +86,7 @@ export default function useDayOffRequests(staffId) {
       await fetchMyRequests();
     } catch (err) {
       setError(err.message || '申請の更新に失敗しました');
+      throw err;
     } finally {
       setSubmitting(false);
     }
@@ -97,10 +98,11 @@ export default function useDayOffRequests(staffId) {
     setError(null);
     try {
       await deleteDayOffRequest(requestId);
-      showSuccess('申請を削除しました');
+      showSuccess('申請を取り消しました');
       await fetchMyRequests();
     } catch (err) {
-      setError(err.message || '申請の削除に失敗しました');
+      setError(err.message || '申請の取り消しに失敗しました');
+      throw err;
     } finally {
       setSubmitting(false);
     }

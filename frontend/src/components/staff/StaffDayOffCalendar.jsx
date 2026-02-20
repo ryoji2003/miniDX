@@ -1,6 +1,6 @@
 // src/components/staff/StaffDayOffCalendar.jsx
 import React, { useState, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Users } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Users, Search, X } from 'lucide-react';
 import { Card, Button, cn } from '../ui/Layouts';
 
 // Color palette for staff members (distinct, colorblind-friendly)
@@ -62,13 +62,21 @@ export default function StaffDayOffCalendar({ calendarData = [], onMonthChange }
   const today = new Date();
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
+  const [searchQuery, setSearchQuery] = useState('');
 
   const calendarDays = useMemo(
     () => getCalendarDays(currentYear, currentMonth),
     [currentYear, currentMonth]
   );
 
-  // Create staff color mapping
+  // Filter data by search query
+  const filteredData = useMemo(() => {
+    if (!searchQuery.trim()) return calendarData;
+    const q = searchQuery.trim().toLowerCase();
+    return calendarData.filter(item => item.staff_name.toLowerCase().includes(q));
+  }, [calendarData, searchQuery]);
+
+  // Create staff color mapping (based on all data to keep colors stable)
   const staffColorMap = useMemo(() => {
     const uniqueStaffIds = [...new Set(calendarData.map(item => item.staff_id))];
     const map = {};
@@ -78,22 +86,22 @@ export default function StaffDayOffCalendar({ calendarData = [], onMonthChange }
     return map;
   }, [calendarData]);
 
-  // Group calendar data by date
+  // Group filtered calendar data by date
   const dataByDate = useMemo(() => {
     const map = {};
-    calendarData.forEach(item => {
+    filteredData.forEach(item => {
       if (!map[item.request_date]) {
         map[item.request_date] = [];
       }
       map[item.request_date].push(item);
     });
     return map;
-  }, [calendarData]);
+  }, [filteredData]);
 
-  // Get unique staff list for legend
+  // Get unique staff list for legend (from filtered data)
   const staffList = useMemo(() => {
     const unique = new Map();
-    calendarData.forEach(item => {
+    filteredData.forEach(item => {
       if (!unique.has(item.staff_id)) {
         unique.set(item.staff_id, {
           id: item.staff_id,
@@ -103,7 +111,7 @@ export default function StaffDayOffCalendar({ calendarData = [], onMonthChange }
       }
     });
     return Array.from(unique.values());
-  }, [calendarData, staffColorMap]);
+  }, [filteredData, staffColorMap]);
 
   // Navigate months
   const goToPreviousMonth = () => {
@@ -129,10 +137,41 @@ export default function StaffDayOffCalendar({ calendarData = [], onMonthChange }
 
   return (
     <Card className="p-6 bg-white border-none shadow-sm">
-      <div className="flex items-center gap-2 mb-6">
+      <div className="flex items-center gap-2 mb-4">
         <Users className="h-5 w-5 text-primary" />
         <h2 className="text-lg font-semibold text-gray-800">他のスタッフの休暇</h2>
-        <span className="text-sm text-gray-500">(承認済みのみ表示)</span>
+      </div>
+
+      {/* Search box */}
+      <div className="relative mb-4">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="スタッフ名で検索..."
+          className="w-full pl-9 pr-8 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none"
+        />
+        {searchQuery && (
+          <button
+            onClick={() => setSearchQuery('')}
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-100 rounded"
+          >
+            <X className="h-3 w-3 text-gray-400" />
+          </button>
+        )}
+      </div>
+
+      {/* Status legend */}
+      <div className="flex items-center gap-4 mb-4 text-xs text-gray-500">
+        <span className="flex items-center gap-1">
+          <span className="inline-block w-3 h-3 rounded bg-blue-100 border border-blue-300" />
+          承認済み
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="inline-block w-3 h-3 rounded bg-yellow-50 border border-dashed border-yellow-400" />
+          申請中
+        </span>
       </div>
 
       {/* Month navigation */}
@@ -229,17 +268,19 @@ export default function StaffDayOffCalendar({ calendarData = [], onMonthChange }
 
               {/* Day-off requests */}
               <div className="space-y-0.5">
-                {dayRequests.slice(0, 3).map((req, i) => {
+                {dayRequests.slice(0, 3).map((req) => {
                   const color = staffColorMap[req.staff_id];
+                  const isPending = req.status === 'pending';
                   return (
                     <div
                       key={req.id}
                       className={cn(
                         "text-xs px-1 py-0.5 rounded truncate",
-                        color?.bg,
-                        color?.text
+                        isPending
+                          ? "bg-yellow-50 text-yellow-700 border border-dashed border-yellow-400"
+                          : cn(color?.bg, color?.text)
                       )}
-                      title={req.staff_name}
+                      title={`${req.staff_name}（${isPending ? '申請中' : '承認済み'}）`}
                     >
                       {req.staff_name}
                     </div>
@@ -251,22 +292,19 @@ export default function StaffDayOffCalendar({ calendarData = [], onMonthChange }
                   </div>
                 )}
               </div>
-
-              {/* Overlap warning indicator */}
-              {hasOverlap && (
-                <div className="absolute top-1 right-1">
-                  <span className="w-2 h-2 bg-yellow-400 rounded-full inline-block" title="複数名が休暇" />
-                </div>
-              )}
             </div>
           );
         })}
       </div>
 
-      {calendarData.length === 0 && (
+      {filteredData.length === 0 && (
         <div className="text-center py-8 text-gray-500 mt-4">
           <Users className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-          <p>この月には他のスタッフの承認済み休暇がありません</p>
+          <p>
+            {searchQuery
+              ? `「${searchQuery}」に一致するスタッフの休暇申請がありません`
+              : 'この月には他のスタッフの休暇申請がありません'}
+          </p>
         </div>
       )}
     </Card>

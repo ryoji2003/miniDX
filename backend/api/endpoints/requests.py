@@ -113,8 +113,8 @@ def get_all_staff_day_off_calendar(
     db: Session = Depends(get_db),
     _=Depends(get_current_user),
 ):
-    """Get all approved day-off requests for calendar display (staff view - only shows approved)"""
-    requests = crud_request.get_calendar_requests(db, year, month, status_filter="approved")
+    """Get all day-off requests for calendar display (staff view - approved and pending)"""
+    requests = crud_request.get_calendar_requests(db, year, month, include_pending=True)
 
     results = []
     for req in requests:

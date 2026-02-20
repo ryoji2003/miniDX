@@ -260,6 +260,7 @@ export default function DailyRequirements({ selectedMonth }) {
           </h3>
           <div className="flex flex-wrap gap-2">
             {Object.keys(requirements)
+              .filter((date) => selectedDate && date.startsWith(selectedDate.slice(0, 7)))
               .sort()
               .map((date) => (
                 <button

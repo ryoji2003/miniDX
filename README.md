@@ -25,14 +25,17 @@ miniDX/
 │   ├── models/models.py      # SQLAlchemy テーブル定義
 │   ├── schemas/              # Pydantic スキーマ・定数（enums）
 │   ├── crud/                 # DB操作（staff, task, shift, request）
-│   └── solver/
-│       ├── engine.py         # ソルバー起動・Excel/JSON出力
-│       ├── constraints.py    # 制約ロジック (C1〜C10, S1)
-│       └── exporter.py       # Excel 書式設定
+│   ├── solver/
+│   │   ├── engine.py         # ソルバー起動・Excel/JSON出力
+│   │   ├── constraints.py    # 制約ロジック (C1〜C11, S1, S2)
+│   │   └── exporter.py       # Excel 書式設定
+│   └── test/                 # ソルバーテスト
 ├── frontend/
 │   └── src/
 │       ├── api/              # fetch ラッパー（auth, staff, task, shift, request）
 │       ├── contexts/         # AuthContext（スタッフ/管理者トークン管理）
+│       ├── hooks/            # カスタムフック
+│       ├── mocks/            # モックデータ
 │       ├── pages/            # 各画面コンポーネント
 │       └── components/       # UI パーツ
 ├── static/                   # 生成 Excel の出力先
@@ -97,6 +100,7 @@ npm run dev
 
 | カラム | 型 | 説明 |
 |--------|-----|------|
+| `name` | str | スタッフ名 |
 | `license_type` | int | 0: 免許なし / 1: 普通車 / 2: ワゴン可 |
 | `is_part_time` | bool | パート区分 |
 | `can_only_train` | bool | 訓練業務のみ担当可能 |
@@ -115,9 +119,37 @@ npm run dev
 
 登録した日は全スタッフの全業務割り当てが 0 に強制されます。
 
+### MonthlyRestDaySetting（月間公休設定）
+
+| カラム | 型 | 説明 |
+|--------|-----|------|
+| `year` | int | 対象年 |
+| `month` | int | 対象月 |
+| `additional_days` | int | 土曜以外の公休日数（デフォルト: 0） |
+
+管理者が設定した追加公休日数と土曜日数の合計が、各スタッフの月間休日数として使用されます。
+
+### Skill（スキル）
+
+| カラム | 型 | 説明 |
+|--------|-----|------|
+| `name` | str | スキル名（ユニーク） |
+
+業務に任意で紐づけられます。
+
 ### RequestedDayOff（休暇申請）
 
-スタッフが申請 → 管理者が承認/却下 のワークフローを持ちます。
+| カラム | 型 | 説明 |
+|--------|-----|------|
+| `staff_id` | int | スタッフ ID |
+| `request_date` | date | 申請日付 |
+| `reason` | str | 理由（最大 500 文字、任意） |
+| `status` | str | `pending` / `approved` / `rejected` |
+| `rejection_reason` | str | 却下理由（任意） |
+| `approved_at` | datetime | 承認日時（任意） |
+| `approved_by` | str | 承認者名（任意） |
+
+スタッフが申請 → 管理者が承認/却下 のワークフローを持ちます。承認済みの申請はシフト生成時にソフト制約（S2）として反映されます。
 
 ## 業務一覧
 
@@ -143,7 +175,7 @@ npm run dev
 |----|------|
 | **C1** | 1日1人1業務まで |
 | **C2** | 日次要件で指定した業務別必要人数を充足する |
-| **C3** | 希望休として登録された日は、該当スタッフをシフトに入れない |
+| ~~**C3**~~ | ~~希望休として登録された日は、該当スタッフをシフトに入れない~~ → **廃止**（S2 ソフト制約へ移行） |
 | **C4** | 業務名に「看護」を含むタスクは `is_nurse == True` のスタッフのみ割り当て可能 |
 | **C5** | `can_only_train == True` のスタッフは訓練業務のみ担当可能 |
 | **C6** | 毎日 `license_type >= 1` かつ常勤のスタッフが 6 人以上出勤する |
@@ -151,12 +183,14 @@ npm run dev
 | **C8** | 業務名に「リーダー」または「サブリーダー」を含むタスクは、`is_nurse == True` または `can_only_train == False` のスタッフのみ割り当て可能 |
 | **C9** | 業務名に「ワゴン」を含むタスクは `license_type == 2` のみ可。「普通車」または汎用「運転」タスクは `license_type >= 1` のみ可 |
 | **C10** | `is_part_time == True` のスタッフは業務名に「運転」または「送迎」を含むタスクへの割り当てを禁止 |
+| **C11** | 業務名に「訓練」を含むタスクは `is_nurse == True` または `can_only_train == True` のスタッフのみ割り当て可能 |
 
 ### ソフト制約（できれば満たす）
 
 | ID | 内容 |
 |----|------|
 | **S1** | 各スタッフの月間勤務日数が `work_limit` を超えない |
+| **S2** | 承認済み休暇申請（`RequestedDayOff.status == "approved"`）の日はなるべくシフトに入れない（違反時にペナルティを最小化） |
 
 ### 事務・研修（フリー枠）の特別ルール
 
@@ -203,6 +237,8 @@ npm run dev
 | GET/POST | `/holidays` | 施設休日一覧 / 登録 |
 | DELETE | `/holidays/{date}` | 施設休日削除 |
 | POST | `/generate-shift` | シフト自動生成（Excel + JSON 返却） |
+| GET | `/monthly-rest-setting` | 月間公休設定取得（クエリ: `year`, `month`） |
+| POST | `/monthly-rest-setting` | 月間公休設定登録/更新（管理者） |
 
 ### 休暇申請 `/api`
 
@@ -225,9 +261,9 @@ POST /api/generate-shift { year, month }
   ↓
 全スタッフ × 全日 × 全業務 の BoolVar を生成
   ↓
-C1〜C10 ハード制約を追加
+C1〜C11 ハード制約を追加
   ↓
-S1 ソフト制約を追加
+S1・S2 ソフト制約を追加（違反ペナルティを最小化）
   ↓
 OR-Tools CP-SAT ソルバーで求解
   ↓
