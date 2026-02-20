@@ -9,7 +9,7 @@ import {
   CheckSquare,
   Square,
   X,
-  AlertTriangle,
+  RotateCcw,
 } from 'lucide-react';
 import { Card, Button, cn } from '../ui/Layouts';
 
@@ -132,6 +132,7 @@ export default function RequestDayOffApprovalList({
   onApprove,
   onReject,
   onBulkApprove,
+  onResetToPending,
   loading = false,
 }) {
   // Filters
@@ -202,6 +203,15 @@ export default function RequestDayOffApprovalList({
       setSelectedIds(prev => prev.filter(id => id !== requestId));
     } catch (err) {
       console.error('Reject failed:', err);
+    }
+  };
+
+  // Handle reset to pending
+  const handleResetToPending = async (requestId) => {
+    try {
+      await onResetToPending(requestId);
+    } catch (err) {
+      console.error('Reset to pending failed:', err);
     }
   };
 
@@ -351,6 +361,11 @@ export default function RequestDayOffApprovalList({
                     <span className="text-sm text-gray-500 truncate max-w-[200px] inline-block">
                       {request.reason || '-'}
                     </span>
+                    {request.rejection_reason && (
+                      <span className="block text-xs text-red-400 truncate max-w-[200px]" title={request.rejection_reason}>
+                        却下理由: {request.rejection_reason}
+                      </span>
+                    )}
                   </td>
                   <td className="py-3 px-2">
                     <StatusBadge status={request.status} />
@@ -359,8 +374,10 @@ export default function RequestDayOffApprovalList({
                     <span className="text-sm text-gray-500">{formatDateTime(request.created_at)}</span>
                   </td>
                   <td className="py-3 px-2 text-right">
-                    {request.status === 'pending' && (
-                      <div className="flex items-center justify-end gap-1">
+                    {/* 全ステータスでアクションボタンを表示 */}
+                    <div className="flex items-center justify-end gap-1">
+                      {/* 承認ボタン（承認済み以外） */}
+                      {request.status !== 'approved' && (
                         <button
                           onClick={() => handleApprove(request.id)}
                           disabled={loading}
@@ -369,6 +386,9 @@ export default function RequestDayOffApprovalList({
                         >
                           <CheckCircle className="h-4 w-4" />
                         </button>
+                      )}
+                      {/* 却下ボタン（却下済み以外） */}
+                      {request.status !== 'rejected' && (
                         <button
                           onClick={() => setRejectingRequest(request)}
                           disabled={loading}
@@ -377,19 +397,19 @@ export default function RequestDayOffApprovalList({
                         >
                           <XCircle className="h-4 w-4" />
                         </button>
-                      </div>
-                    )}
-                    {request.status === 'approved' && (
-                      <span className="text-xs text-gray-400">
-                        {request.approved_by && `承認: ${request.approved_by}`}
-                      </span>
-                    )}
-                    {request.status === 'rejected' && (
-                      <span className="text-xs text-red-500" title={request.rejection_reason}>
-                        <AlertTriangle className="h-4 w-4 inline mr-1" />
-                        却下済み
-                      </span>
-                    )}
+                      )}
+                      {/* 承認待ちに戻すボタン（pending以外） */}
+                      {request.status !== 'pending' && onResetToPending && (
+                        <button
+                          onClick={() => handleResetToPending(request.id)}
+                          disabled={loading}
+                          className="p-2 hover:bg-yellow-100 rounded-lg text-yellow-600 transition-colors"
+                          title="承認待ちに戻す"
+                        >
+                          <RotateCcw className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -400,9 +420,7 @@ export default function RequestDayOffApprovalList({
 
       {/* Summary */}
       <div className="mt-4 pt-4 border-t flex flex-wrap gap-4 text-sm text-gray-500">
-        <span>
-          全 {filteredRequests.length} 件
-        </span>
+        <span>全 {filteredRequests.length} 件</span>
         <span className="text-yellow-600">
           承認待ち: {filteredRequests.filter(r => r.status === 'pending').length} 件
         </span>

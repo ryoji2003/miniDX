@@ -55,12 +55,11 @@ function HolidayCalendar({ year, month }) {
     }
   };
 
-  const setAllWeekends = async () => {
+  const setAllSundays = async () => {
     const toAdd = [];
     for (let d = 1; d <= daysInMonth; d++) {
       const date = new Date(year, month - 1, d);
-      const dow = date.getDay();
-      if (dow === 0 || dow === 6) {
+      if (date.getDay() === 0) {
         const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
         if (!holidays.has(dateStr)) {
           toAdd.push(dateStr);
@@ -91,11 +90,11 @@ function HolidayCalendar({ year, month }) {
       <div className="flex justify-between items-center mb-3">
         <span className="text-sm text-gray-500">日付をクリックして休日を設定/解除できます</span>
         <Button
-          onClick={setAllWeekends}
+          onClick={setAllSundays}
           variant="ghost"
           className="text-sm border border-gray-300 text-gray-700 hover:bg-gray-50"
         >
-          今月の土日をすべて休日に設定
+          今月の日曜をすべて休日に設定
         </Button>
       </div>
 

@@ -233,12 +233,10 @@ def approve_day_off_request(
     if not db_req:
         raise HTTPException(status_code=404, detail="Day-off request not found")
 
-    if db_req.status != "pending":
-        raise HTTPException(status_code=400, detail="Only pending requests can be approved")
-
     db_req.status = "approved"
     db_req.approved_at = datetime.utcnow()
     db_req.approved_by = approval.approved_by
+    db_req.rejection_reason = None
     db_req.updated_at = datetime.utcnow()
 
     db.commit()
@@ -262,12 +260,35 @@ def reject_day_off_request(
     if not db_req:
         raise HTTPException(status_code=404, detail="Day-off request not found")
 
-    if db_req.status != "pending":
-        raise HTTPException(status_code=400, detail="Only pending requests can be rejected")
-
     db_req.status = "rejected"
     db_req.rejection_reason = rejection.rejection_reason
     db_req.approved_by = rejection.rejected_by
+    db_req.updated_at = datetime.utcnow()
+
+    db.commit()
+    db.refresh(db_req)
+
+    staff = crud_request.get_staff_by_id(db, db_req.staff_id)
+    result = schemas.RequestedDayOff.model_validate(db_req)
+    result.staff_name = staff.name if staff else None
+    return result
+
+
+@router.put("/admin/requested-days-off/{request_id}/pending", response_model=schemas.RequestedDayOff)
+def reset_day_off_request_to_pending(
+    request_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(get_current_admin),
+):
+    """承認済み・却下済みの申請を承認待ち（pending）に戻す"""
+    db_req = crud_request.get_request_by_id(db, request_id)
+    if not db_req:
+        raise HTTPException(status_code=404, detail="Day-off request not found")
+
+    db_req.status = "pending"
+    db_req.approved_at = None
+    db_req.approved_by = None
+    db_req.rejection_reason = None
     db_req.updated_at = datetime.utcnow()
 
     db.commit()

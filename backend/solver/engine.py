@@ -3,7 +3,7 @@ from ortools.sat.python import cp_model
 from .constraints import ShiftConstraints
 from .exporter import create_excel_file, extract_shift_data
 
-def generate_shift_excel(staffs, tasks, requirements, absences, year, month, holidays=None):
+def generate_shift_excel(staffs, tasks, requirements, absences, year, month, holidays=None, additional_days=None):
     model = cp_model.CpModel()
 
     if month == 12:
@@ -20,8 +20,12 @@ def generate_shift_excel(staffs, tasks, requirements, absences, year, month, hol
                 shifts[(s.id, d, t.id)] = model.NewBoolVar(f"shift_s{s.id}_d{d}_t{t.id}")
 
     constraints = ShiftConstraints(model, shifts, staffs, tasks, days, year, month)
-    constraints.add_hard_constraints(requirements, absences, holidays or [])
-    constraints.add_soft_constraints()
+    constraints.add_hard_constraints(requirements, absences, holidays or [], additional_days)
+    penalties = constraints.add_soft_constraints(absences)
+
+    # 希望休違反ペナルティを最小化
+    if penalties:
+        model.Minimize(sum(penalties))
 
     solver = cp_model.CpSolver()
     status = solver.Solve(model)

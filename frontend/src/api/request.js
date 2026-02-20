@@ -76,6 +76,12 @@ export async function rejectDayOffRequest(requestId, rejectionReason, rejectedBy
   });
 }
 
+export async function resetDayOffRequestToPending(requestId) {
+  return fetchAPI(`/admin/requested-days-off/${requestId}/pending`, {
+    method: 'PUT',
+  });
+}
+
 export async function bulkApproveDayOffRequests(requestIds, approvedBy) {
   return fetchAPI(`/admin/requested-days-off/bulk-approve?${requestIds.map(id => `request_ids=${id}`).join('&')}`, {
     method: 'PUT',

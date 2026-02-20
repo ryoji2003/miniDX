@@ -7,6 +7,7 @@ from backend.core.database import get_db
 from backend.core.logging import get_logger
 from backend.crud import crud_shift
 from backend.solver import engine as shift_solver
+from backend.core.auth import get_current_admin
 
 logger = get_logger(__name__)
 
@@ -82,8 +83,13 @@ def generate_shift(req: schemas.GenerateRequest, db: Session = Depends(get_db)):
 
     staffs, tasks, absences, requirements, holidays = crud_shift.get_all_shift_data(db)
 
+    # 月間公休設定を取得
+    rest_setting = crud_shift.get_monthly_rest_setting(db, req.year, req.month)
+    additional_days = rest_setting.additional_days if rest_setting else None
+
     excel_path, shift_data = shift_solver.generate_shift_excel(
-        staffs, tasks, requirements, absences, req.year, req.month, holidays
+        staffs, tasks, requirements, absences, req.year, req.month, holidays,
+        additional_days=additional_days
     )
 
     if excel_path:
@@ -97,3 +103,24 @@ def generate_shift(req: schemas.GenerateRequest, db: Session = Depends(get_db)):
             status_code=400,
             detail="シフトを作成できませんでした。制約条件が厳しすぎるか、人が足りません。",
         )
+
+
+# Monthly Rest Day Setting (月間公休設定)
+
+@router.get("/monthly-rest-setting", response_model=schemas.MonthlyRestDaySetting)
+def get_monthly_rest_setting(year: int, month: int, db: Session = Depends(get_db)):
+    """指定年月の公休設定を取得"""
+    setting = crud_shift.get_monthly_rest_setting(db, year, month)
+    if not setting:
+        raise HTTPException(status_code=404, detail="設定が見つかりません")
+    return setting
+
+
+@router.post("/monthly-rest-setting", response_model=schemas.MonthlyRestDaySetting)
+def upsert_monthly_rest_setting(
+    req: schemas.MonthlyRestDaySettingCreate,
+    db: Session = Depends(get_db),
+    _=Depends(get_current_admin),
+):
+    """月間公休設定を登録・更新（管理者のみ）"""
+    return crud_shift.upsert_monthly_rest_setting(db, req.year, req.month, req.additional_days)

@@ -11,11 +11,11 @@ class ShiftConstraints:
         self.year = year
         self.month = month
 
-    def add_hard_constraints(self, requirements, absences, holidays=None):
+    def add_hard_constraints(self, requirements, absences, holidays=None, additional_days=None):
         """すべてのハード制約（必須ルール）を適用"""
         self._c1_one_task_per_staff()
         self._c2_daily_requirements(requirements, holidays or [])
-        self._c3_absence_requests(absences)
+        # C3は廃止: 希望休はソフト制約（_s2_absence_requests）に変更
         self._c4_nurse_exclusive()
         self._c5_training_exclusive()
         self._c6_drivers_limit(holidays or [])
@@ -23,10 +23,16 @@ class ShiftConstraints:
         self._c8_leader_selection()
         self._c9_vehicle_license_requirement()
         self._c10_no_driving_for_part_timers()
+        if additional_days is not None:
+            self._c_monthly_rest_days(additional_days)
 
-    def add_soft_constraints(self):
-        """努力目標（できれば満たしたいルール）"""
+    def add_soft_constraints(self, absences=None):
+        """努力目標（できれば満たしたいルール）。ペナルティ変数リストを返す"""
         self._s1_work_limit()
+        penalties = []
+        if absences:
+            penalties = self._s2_absence_requests(absences)
+        return penalties
 
     def _c1_one_task_per_staff(self):
         """C1: 1日1人1業務まで"""
@@ -62,23 +68,6 @@ class ShiftConstraints:
                     count = req_map[(d, t.id)]
                     self.model.Add(sum(self.shifts[(s.id, d, t.id)] for s in self.staffs) == count)
 
-    def _c3_absence_requests(self, absences):
-        """C3: 希望休の日はシフトに入れない"""
-        abs_map = []
-        for a in absences:
-            try:
-                a_date = datetime.datetime.strptime(a.date, "%Y-%m-%d")
-                if a_date.year == self.year and a_date.month == self.month:
-                    abs_map.append((a.staff_id, a_date.day))
-            except ValueError:
-                continue
-
-        # 特定の組み合わせを0にする
-        for s_id, d in abs_map:
-            for t in self.tasks:
-                if (s_id, d, t.id) in self.shifts:
-                    self.model.Add(self.shifts[(s_id, d, t.id)] == 0)
-
     def _c4_nurse_exclusive(self):
         """C4: 看護業務は看護師のみ"""
         nurse_tasks = [t for t in self.tasks if TaskCategory.NURSING.value in t.name]
@@ -93,7 +82,7 @@ class ShiftConstraints:
         """C5: 訓練限定スタッフは訓練のみ"""
         train_tasks = [t for t in self.tasks if TaskCategory.TRAINING.value in t.name]
         train_task_ids = {t.id for t in train_tasks}
-        
+
         training_only_staffs = [s for s in self.staffs if s.can_only_train]
 
         # 訓練以外のタスクを特定
@@ -188,8 +177,46 @@ class ShiftConstraints:
                 for day in self.days:
                     self.model.Add(self.shifts[(staff.id, day, task.id)] == 0)
 
+    def _c_monthly_rest_days(self, additional_days):
+        """月間休日数ハード制約: 各スタッフの月間休日数 = 土曜日数 + 公休数"""
+        saturdays_count = sum(
+            1 for d in self.days
+            if datetime.date(self.year, self.month, d).weekday() == 5  # 5 = 土曜日
+        )
+        required_rest_days = saturdays_count + additional_days
+        required_work_days = len(self.days) - required_rest_days
+
+        for s in self.staffs:
+            total_work = sum(
+                self.shifts[(s.id, d, t.id)]
+                for d in self.days for t in self.tasks
+            )
+            self.model.Add(total_work == required_work_days)
+
     def _s1_work_limit(self):
         """S1: 勤務日数上限"""
         for s in self.staffs:
             total_work = sum(self.shifts[(s.id, d, t.id)] for d in self.days for t in self.tasks)
             self.model.Add(total_work <= s.work_limit)
+
+    def _s2_absence_requests(self, absences):
+        """S2: 希望休のペナルティ（ソフト制約）- 希望休の日に勤務した場合にペナルティを加算"""
+        penalty_vars = []
+        for a in absences:
+            try:
+                a_date = datetime.datetime.strptime(a.date, "%Y-%m-%d")
+                if a_date.year == self.year and a_date.month == self.month:
+                    s_id = a.staff_id
+                    d = a_date.day
+                    task_vars = [
+                        self.shifts[(s_id, d, t.id)]
+                        for t in self.tasks
+                        if (s_id, d, t.id) in self.shifts
+                    ]
+                    if task_vars:
+                        penalty_var = self.model.NewBoolVar(f"absence_penalty_s{s_id}_d{d}")
+                        self.model.AddMaxEquality(penalty_var, task_vars)
+                        penalty_vars.append(penalty_var)
+            except ValueError:
+                continue
+        return penalty_vars

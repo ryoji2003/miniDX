@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from backend.models.models import (
     Staff, Task, AbsenceRequest, DailyRequirement, RequestedDayOff, Holiday,
+    MonthlyRestDaySetting,
 )
 from backend.schemas.schemas import AbsenceRequestCreate, DailyRequirementCreate, HolidayCreate
 
@@ -97,6 +98,30 @@ def delete_holiday(db: Session, date: str):
 def is_holiday(db: Session, date: str) -> bool:
     """指定日が休日か判定"""
     return get_holiday_by_date(db, date) is not None
+
+
+# --- MonthlyRestDaySetting ---
+
+def get_monthly_rest_setting(db: Session, year: int, month: int):
+    return db.query(MonthlyRestDaySetting).filter(
+        MonthlyRestDaySetting.year == year,
+        MonthlyRestDaySetting.month == month,
+    ).first()
+
+
+def upsert_monthly_rest_setting(db: Session, year: int, month: int, additional_days: int):
+    existing = get_monthly_rest_setting(db, year, month)
+    if existing:
+        existing.additional_days = additional_days
+        db.commit()
+        db.refresh(existing)
+        return existing
+    else:
+        setting = MonthlyRestDaySetting(year=year, month=month, additional_days=additional_days)
+        db.add(setting)
+        db.commit()
+        db.refresh(setting)
+        return setting
 
 
 # --- Shift generation data ---

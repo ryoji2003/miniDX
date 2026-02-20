@@ -1,7 +1,9 @@
 // src/components/staff/RequestDayOffForm.jsx
 import React, { useState, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Calendar, Send, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, Send, X, AlertCircle } from 'lucide-react';
 import { Card, Button, cn } from '../ui/Layouts';
+
+const MAX_REQUESTS_PER_MONTH = 3;
 
 // Generate calendar days for a given month
 function getCalendarDays(year, month) {
@@ -62,13 +64,29 @@ export default function RequestDayOffForm({ staffId, existingRequests = [], onSu
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [selectedDates, setSelectedDates] = useState([]);
   const [reason, setReason] = useState('');
-  const [isSelecting, setIsSelecting] = useState(false);
   const [selectionStart, setSelectionStart] = useState(null);
 
   const calendarDays = useMemo(
     () => getCalendarDays(currentYear, currentMonth),
     [currentYear, currentMonth]
   );
+
+  // Count existing requests for the currently displayed month
+  const existingRequestsThisMonth = useMemo(() => {
+    return existingRequests.filter(req => {
+      const d = new Date(req.request_date);
+      return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+    });
+  }, [existingRequests, currentYear, currentMonth]);
+
+  // Count selected dates for the currently displayed month
+  const selectedDatesThisMonth = useMemo(() => {
+    return selectedDates.filter(d => d.getFullYear() === currentYear && d.getMonth() === currentMonth);
+  }, [selectedDates, currentYear, currentMonth]);
+
+  const totalThisMonth = existingRequestsThisMonth.length + selectedDatesThisMonth.length;
+  const remainingAllowed = MAX_REQUESTS_PER_MONTH - existingRequestsThisMonth.length;
+  const isMonthLimitExceeded = totalThisMonth > MAX_REQUESTS_PER_MONTH;
 
   // Check if date already has a request
   const hasExistingRequest = (date) => {
@@ -89,6 +107,7 @@ export default function RequestDayOffForm({ staffId, existingRequests = [], onSu
     } else {
       setCurrentMonth(currentMonth - 1);
     }
+    setSelectedDates([]);
   };
 
   const goToNextMonth = () => {
@@ -98,6 +117,7 @@ export default function RequestDayOffForm({ staffId, existingRequests = [], onSu
     } else {
       setCurrentMonth(currentMonth + 1);
     }
+    setSelectedDates([]);
   };
 
   // Handle date click - toggle selection or start range
@@ -143,6 +163,7 @@ export default function RequestDayOffForm({ staffId, existingRequests = [], onSu
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (selectedDates.length === 0 || !staffId) return;
+    if (isMonthLimitExceeded) return;
 
     const requestDates = selectedDates.map(d => formatDate(d));
     await onSubmit({
@@ -161,6 +182,9 @@ export default function RequestDayOffForm({ staffId, existingRequests = [], onSu
       <div className="flex items-center gap-2 mb-6">
         <Calendar className="h-5 w-5 text-primary" />
         <h2 className="text-lg font-semibold text-gray-800">休暇申請</h2>
+        <span className="ml-auto text-sm text-gray-500">
+          月の申請上限: {MAX_REQUESTS_PER_MONTH}件
+        </span>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -176,9 +200,19 @@ export default function RequestDayOffForm({ staffId, existingRequests = [], onSu
             >
               <ChevronLeft className="h-5 w-5" />
             </Button>
-            <h3 className="text-lg font-medium text-gray-700">
-              {currentYear}年 {MONTHS[currentMonth]}
-            </h3>
+            <div className="text-center">
+              <h3 className="text-lg font-medium text-gray-700">
+                {currentYear}年 {MONTHS[currentMonth]}
+              </h3>
+              <p className="text-xs text-gray-500">
+                この月の申請: {existingRequestsThisMonth.length} / {MAX_REQUESTS_PER_MONTH}件
+                {remainingAllowed > 0 ? (
+                  <span className="text-green-600 ml-1">（あと{remainingAllowed}件可）</span>
+                ) : (
+                  <span className="text-red-600 ml-1">（上限に達しました）</span>
+                )}
+              </p>
+            </div>
             <Button
               type="button"
               variant="ghost"
@@ -247,6 +281,17 @@ export default function RequestDayOffForm({ staffId, existingRequests = [], onSu
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Monthly limit warning */}
+          {isMonthLimitExceeded && (
+            <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+              <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+              <span>
+                {currentYear}年{currentMonth + 1}月の希望休は月{MAX_REQUESTS_PER_MONTH}件までです。
+                選択を{totalThisMonth - MAX_REQUESTS_PER_MONTH}件減らしてください。
+              </span>
+            </div>
+          )}
+
           {/* Selected dates */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -298,7 +343,7 @@ export default function RequestDayOffForm({ staffId, existingRequests = [], onSu
           {/* Submit */}
           <Button
             type="submit"
-            disabled={selectedDates.length === 0 || loading}
+            disabled={selectedDates.length === 0 || loading || isMonthLimitExceeded}
             className="w-full"
           >
             {loading ? (

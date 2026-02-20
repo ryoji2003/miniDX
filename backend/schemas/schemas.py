@@ -78,6 +78,21 @@ class GenerateRequest(BaseModel):
     month: int
 
 
+# --- 月間公休設定 (MonthlyRestDaySetting) ---
+class MonthlyRestDaySettingBase(BaseModel):
+    year: int
+    month: int
+    additional_days: int = Field(0, ge=0, description="管理者設定の公休数")
+
+class MonthlyRestDaySettingCreate(MonthlyRestDaySettingBase):
+    pass
+
+class MonthlyRestDaySetting(MonthlyRestDaySettingBase):
+    id: int
+    class Config:
+        from_attributes = True
+
+
 # --- 休暇申請 (RequestedDayOff) ---
 class RequestedDayOffBase(BaseModel):
     staff_id: int

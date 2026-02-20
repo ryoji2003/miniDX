@@ -11,6 +11,7 @@ import {
   approveDayOffRequest,
   rejectDayOffRequest,
   bulkApproveDayOffRequests,
+  resetDayOffRequestToPending,
   getAdminDayOffCalendar,
   getDayOffStatistics,
 } from '../../api/request';
@@ -122,6 +123,23 @@ export default function ManageRequestDayOffPage() {
     } catch (err) {
       console.error('Reject error:', err);
       setError(`却下に失敗しました: ${err.message || '不明なエラー'}`);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Handle reset to pending
+  const handleResetToPending = async (requestId) => {
+    setActionLoading(true);
+    setError(null);
+
+    try {
+      await resetDayOffRequestToPending(requestId);
+      showSuccess('申請を承認待ちに戻しました');
+      await Promise.all([fetchRequests(), fetchCalendarData()]);
+    } catch (err) {
+      console.error('Reset to pending error:', err);
+      setError(`ステータス変更に失敗しました: ${err.message || '不明なエラー'}`);
     } finally {
       setActionLoading(false);
     }
@@ -249,6 +267,7 @@ export default function ManageRequestDayOffPage() {
               onApprove={handleApprove}
               onReject={handleReject}
               onBulkApprove={handleBulkApprove}
+              onResetToPending={handleResetToPending}
               loading={actionLoading}
             />
           )}

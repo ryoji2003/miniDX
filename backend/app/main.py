@@ -30,6 +30,21 @@ with engine.connect() as conn:
         conn.commit()
         logger.info("staffs.is_admin カラムを追加しました")
 
+# monthly_rest_day_settingsテーブルが存在しない場合はBase.metadata.create_allで自動作成済みだが、
+# 既存DBでテーブルが存在するか確認してなければ作成
+with engine.connect() as conn:
+    inspector = sa_inspect(engine)
+    if "monthly_rest_day_settings" not in inspector.get_table_names():
+        conn.execute(text(
+            "CREATE TABLE IF NOT EXISTS monthly_rest_day_settings "
+            "(id INTEGER PRIMARY KEY AUTOINCREMENT, "
+            "year INTEGER NOT NULL, "
+            "month INTEGER NOT NULL, "
+            "additional_days INTEGER NOT NULL DEFAULT 0)"
+        ))
+        conn.commit()
+        logger.info("monthly_rest_day_settings テーブルを作成しました")
+
 app = FastAPI()
 
 

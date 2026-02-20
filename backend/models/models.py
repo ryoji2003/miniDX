@@ -63,6 +63,14 @@ class Holiday(Base):
     date = Column(String, unique=True, index=True)  # YYYY-MM-DD形式
     description = Column(String, nullable=True)
 
+# --- 月間公休設定 (MonthlyRestDaySetting) ---
+class MonthlyRestDaySetting(Base):
+    __tablename__ = "monthly_rest_day_settings"
+    id = Column(Integer, primary_key=True, index=True)
+    year = Column(Integer, nullable=False, index=True)
+    month = Column(Integer, nullable=False, index=True)
+    additional_days = Column(Integer, nullable=False, default=0)  # 管理者設定の公休数
+
 
 # --- 休暇申請 (RequestedDayOff) ---
 class RequestedDayOff(Base):

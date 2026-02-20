@@ -62,3 +62,16 @@ export async function generateShift(year, month) {
     body: JSON.stringify({ year, month }),
   });
 }
+
+// ========== Monthly Rest Day Setting API (月間公休設定) ==========
+
+export async function getMonthlyRestSetting(year, month) {
+  return fetchAPI(`/monthly-rest-setting?year=${year}&month=${month}`);
+}
+
+export async function upsertMonthlyRestSetting(year, month, additionalDays) {
+  return fetchAPI('/monthly-rest-setting', {
+    method: 'POST',
+    body: JSON.stringify({ year, month, additional_days: additionalDays }),
+  });
+}
