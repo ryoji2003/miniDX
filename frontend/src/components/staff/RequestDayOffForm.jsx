@@ -152,7 +152,6 @@ export default function RequestDayOffForm({ staffId, existingRequests = [], onSu
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (selectedDates.length === 0 || !staffId) return;
-    if (isMonthLimitExceeded) return;
 
     const requestDates = selectedDates.map(d => formatDate(d));
     await onSubmit({
